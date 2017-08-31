@@ -374,7 +374,7 @@
         }
 
         function onMouseMove(e) {
-            if (selected_sprite != -1 && (mouse_state == 1 || mouse_state == 2 || mouse_state == 4)) {
+            if (mouse_state == 2 || mouse_state == 1) {
                 mouse_state = 2;
                 pos = new mouse_pos_within_canvas(e);
                 delta_X += pos.X - prev_X;
@@ -385,22 +385,31 @@
         }
 
         function onMouseUp(e) {
-            pos = new mouse_pos_within_canvas(e);
-            if (pos.X <= playground_width && mouse_state == 2) {
-                if (selected_sprite != -1) {
-                    mouse_state = 3;
-                    prev_X = -1;
-                    prev_Y = -1;
-                    sprites[selected_sprite].alpha = 1;
-                    overlapped_sprite_index_1 = selected_sprite;
-                    selected_sprite = -1;
-                } else
-                    mouse_state = 0;
-            } else {
-                if (selected_sprite != -1) {
-                    mouse_state = 5;
-                } else
-                    mouse_state = 0;
+            if (mouse_state == 2) {
+                pos = new mouse_pos_within_canvas(e);
+                if (pos.X <= playground_width) {
+                    if (selected_sprite != -1) {
+                        mouse_state = 3;
+                        prev_X = -1;
+                        prev_Y = -1;
+                        sprites[selected_sprite].alpha = 1;
+                        overlapped_sprite_index_1 = selected_sprite;
+                        selected_sprite = -1;
+                    } else
+                        mouse_state = 0;
+                } else {
+                    if (selected_sprite != -1) {
+                        mouse_state = 5;
+                    } else
+                        mouse_state = 0;
+                }
+            }else if(mouse_state==4){
+                sprite_to_create = "";
+                sprite_creation_X = -1;
+                sprite_creation_Y = -1;
+                mouse_state=0;
+            }else if(mouse_state==1){
+                mouse_state=5;
             }
         }
 
@@ -454,10 +463,11 @@
                     break;
                 }
                 case 3: {
-                    mouse_state = 0;
                     reassign_sprite_priorities();
-                    if (overlapped_sprite_index_1 == -1)
+                    if (overlapped_sprite_index_1 == -1) {
+                        mouse_state = 0;
                         break;
+                    }
                     overlapped_sprite_index_2 = check_overlap_with_priority(overlapped_sprite_index_1);
                     if (overlapped_sprite_index_2 != -1) {
                         var result_name = seek_result_name(names[elements[sprites[overlapped_sprite_index_1].ei].ni], names[elements[sprites[overlapped_sprite_index_2].ei].ni]);
@@ -480,19 +490,22 @@
                         overlapped_sprite_index_1 = -1;
                         overlapped_sprite_index_2 = -1;
                     }
+                    mouse_state = 0;
                     break;
                 }
                 case 4: {
-                    mouse_state = 1;
                     create_sprite(sprite_to_create, sprite_creation_X, sprite_creation_Y);
                     selected_sprite = sprites.length - 1;
                     sprites[selected_sprite].alpha = 0.5;
+                    mouse_state = 1;
                     break;
                 }
                 case 5: {
+                    if (selected_sprite != -1) {
+                        remove_sprite(selected_sprite);
+                        selected_sprite = -1;
+                    }
                     mouse_state = 0;
-                    remove_sprite(selected_sprite);
-                    selected_sprite = -1;
                     break;
                 }
             }
