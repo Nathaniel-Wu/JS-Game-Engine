@@ -226,7 +226,7 @@
             }
             return res;
         }
-        
+
         function check_overlap_with_priority(sprite_index) {
             var luX = sprites[sprite_index].X - sprites[sprite_index].image.width / 2;
             var luY = sprites[sprite_index].Y - sprites[sprite_index].image.height / 2;
@@ -374,20 +374,19 @@
         }
 
         function onMouseMove(e) {
-            if (selected_sprite != -1) {
+            if (selected_sprite != -1 && (mouse_state == 1 || mouse_state == 2 || mouse_state == 4)) {
                 mouse_state = 2;
                 pos = new mouse_pos_within_canvas(e);
                 delta_X += pos.X - prev_X;
                 delta_Y += pos.Y - prev_Y;
                 prev_X = pos.X;
                 prev_Y = pos.Y;
-            } else
-                mouse_state = 0;
+            }
         }
 
         function onMouseUp(e) {
             pos = new mouse_pos_within_canvas(e);
-            if (pos.X <= playground_width) {
+            if (pos.X <= playground_width && mouse_state == 2) {
                 if (selected_sprite != -1) {
                     mouse_state = 3;
                     prev_X = -1;
@@ -484,16 +483,16 @@
                     break;
                 }
                 case 4: {
+                    mouse_state = 1;
                     create_sprite(sprite_to_create, sprite_creation_X, sprite_creation_Y);
                     selected_sprite = sprites.length - 1;
                     sprites[selected_sprite].alpha = 0.5;
-                    mouse_state = 0;
                     break;
                 }
                 case 5: {
+                    mouse_state = 0;
                     remove_sprite(selected_sprite);
                     selected_sprite = -1;
-                    mouse_state = 0;
                     break;
                 }
             }
