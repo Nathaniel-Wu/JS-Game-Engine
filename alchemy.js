@@ -438,7 +438,7 @@ function load_content() {
 
 function update() {
     switch (mouse_state) {
-        case 1: {
+        case 1: {//Mouse down
             if (selected_sprite == -1)
                 break;
             sprites[selected_sprite].priority = 0;
@@ -446,7 +446,7 @@ function update() {
             check_overlap_with_priority(selected_sprite);
             reassign_sprite_priorities();
         }
-        case 2: {
+        case 2: {//Mouse move
             if (selected_sprite == -1)
                 break;
             move_sprite(selected_sprite, delta_X, delta_Y);
@@ -456,7 +456,7 @@ function update() {
             reassign_sprite_priorities();
             break;
         }
-        case 3: {
+        case 3: {//Mouse up
             reassign_sprite_priorities();
             if (overlapped_sprite_index_1 == -1) {
                 mouse_state = 0;
@@ -487,14 +487,14 @@ function update() {
             mouse_state = 0;
             break;
         }
-        case 4: {
+        case 4: {//Mouse down in side bar area
             create_sprite(sprite_to_create, sprite_creation_X, sprite_creation_Y);
             selected_sprite = sprites.length - 1;
             sprites[selected_sprite].alpha = 0.5;
             mouse_state = 1;
             break;
         }
-        case 5: {
+        case 5: {//Mouse up in side bar area
             if (selected_sprite != -1) {
                 remove_sprite(selected_sprite);
                 selected_sprite = -1;
