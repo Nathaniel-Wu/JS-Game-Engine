@@ -1,61 +1,33 @@
-var canvas = document.getElementById("canvas");
-var canvas_x = canvas.getBoundingClientRect().left;
-var canvas_y = canvas.getBoundingClientRect().top;
-var context = canvas.getContext("2d");
-var playground_width = canvas.width * 0.8;
-var sidebar_width = canvas.width - playground_width;
-
 //---------------------------------------------- Element
 
-var names = new Array();
-var sources = new Array();
 var elements = new Array();
 
-function string_compare(str_1, str_2) {
-    return (str_1 < str_2 ? false : (str_1 > str_2 ? false : true));
-}
-
-function look_up_name(name) {
-    for (var i = 0; i < names.length; i++)
-        if (string_compare(names[i], name))
+function look_up_element_by_name(name) {
+    for (var i = 0; i < elements.length; i++)
+        if (string_compare(elements[i].name, name))
             return i;
     return -1;
 }
 
-function look_up_source(source) {
-    for (var i = 0; i < sources.length; i++)
-        if (string_compare(sources[i], source))
-            return i;
-    return -1;
-}
-
-function Element(name_index, source_index) {
-    this.ni = name_index;
-    this.si = name_index;
+function Element(name, texture_index) {
+    this.name = name;
+    this.ti = texture_index;
     return this;
 }
 
-function create_element(name, source) {
-    var ni = look_up_name(name);
-    if (ni == -1) {
-        ni = names.length;
-        names.push(name);
-        var si = look_up_source(source);
-        if (si == -1) {
-            si = sources.length;
-            sources.push(source);
-        }
-        elements.push(new Element(ni, si));
+function create_element(name, texture_index) {
+    var ei = look_up_element_by_name(name);
+    if (ei == -1) {
+        elements.push(new Element(name, texture_index));
         return true;
     }
     return false;
 }
 
-function look_up_element(name) {
-    for (var i = 0; i < elements.length; i++)
-        if (string_compare(names[elements[i].ni], name))
-            return i;
-    return -1;
+function validate_element_index(element_index) {
+    if (0 <= element_index && element_index < elements.length)
+        return true;
+    return false;
 }
 
 //---------------------------------------------- Rule Set
@@ -69,11 +41,11 @@ function Rule(component_index_1, component_index_2, result_index) {
 }
 
 function create_rule(component_name_1, component_name_2, result_name) {
-    var comp_1 = look_up_element(component_name_1);
+    var comp_1 = look_up_element_by_name(component_name_1);
     if (comp_1 != -1) {
-        var comp_2 = look_up_element(component_name_2);
+        var comp_2 = look_up_element_by_name(component_name_2);
         if (comp_2 != -1) {
-            var result = look_up_element(result_name);
+            var result = look_up_element_by_name(result_name);
             if (result != -1) {
                 rule_set.push(new Rule(comp_1, comp_2, result));
                 return true;
@@ -83,431 +55,294 @@ function create_rule(component_name_1, component_name_2, result_name) {
     return false;
 }
 
-function seek_result_name(component_name_1, component_name_2) {
+function seek_result(component_index_1, component_index_2) {
     for (var i = 0; i < rule_set.length; i++) {
-        var rule_comp_1 = names[elements[rule_set[i].comp_1].ni];
-        var rule_comp_2 = names[elements[rule_set[i].comp_2].ni];
-        if ((string_compare(rule_comp_1, component_name_1) && string_compare(rule_comp_2, component_name_2)) || (string_compare(rule_comp_1, component_name_2) && string_compare(rule_comp_2, component_name_1)))
-            return names[elements[rule_set[i].result].ni];
+        if ((rule_set[i].comp_1 == component_index_1 && rule_set[i].comp_2 == component_index_2) || (rule_set[i].comp_1 == component_index_2 && rule_set[i].comp_2 == component_index_1))
+            return rule_set[i].result;
     }
-    return null;
+    return -1;
 }
 
-//---------------------------------------------- Sprite
+//---------------------------------------------- Engine-Inherited Element Sprite
 
-var sprite_size = 50;
-var half_sprite_size = sprite_size / 2;
-var min_x = half_sprite_size;
-var max_x = canvas.width - half_sprite_size;
-var min_y = half_sprite_size;
-var max_y = canvas.height - half_sprite_size;
-
-function Sprite(x, y, w, h, source_index, element_index) {
-    this.X = x;
-    this.Y = y;
-    this.image = new Image();
-    this.image.width = w;
-    this.image.height = h;
-    this.image.src = sources[source_index];
-    this.ei = element_index;
-    this.priority = 0;
-    this.alpha = 1;
+var element_sprite_size = 50;
+Element_Sprite.prototype = new Sprite();
+Element_Sprite.prototype.constructor = Element_Sprite;
+function Element_Sprite(x, y, element_index) {
+    Sprite.call(this, x, y, element_sprite_size, element_sprite_size);
+    this.ei = -1;
+    if (validate_element_index(element_index)) {
+        this.ei = element_index;
+        this.attach_texture(elements[this.ei].ti);
+    }
     return this;
 }
 
-var sprites = new Array();
+//---------------------------------------------- Engine-Inherited - Menu Item Sprite
 
-function allowable_x(x) {
-    if (x < min_x)
-        return min_x;
-    if (x > max_x)
-        return max_x;
-    return x;
-}
-
-function allowable_y(y) {
-    if (y < min_y)
-        return min_y;
-    if (y > max_y)
-        return max_y;
-    return y;
-}
-
-function create_sprite(name, x, y) {
-    var ei = look_up_element(name);
-    if (ei != -1) {
-        sprites.push(new Sprite(allowable_x(x), allowable_y(y), sprite_size, sprite_size, elements[ei].si, ei));
-        return true;
-    }
-    return false;
-}
-
-function check_overlap_without_priority(sprite_index) {
-    var luX = sprites[sprite_index].X - sprites[sprite_index].image.width / 2;
-    var luY = sprites[sprite_index].Y - sprites[sprite_index].image.height / 2;
-    var rlX = sprites[sprite_index].X + sprites[sprite_index].image.width / 2;
-    var rlY = sprites[sprite_index].Y + sprites[sprite_index].image.height / 2;
-    var luX_, luY_, rlX_, rlY_;
-    for (var i = 0; i < sprites.length; i++) {
-        if (i == sprite_index)
-            continue;
-        luX_ = sprites[i].X - sprites[i].image.width / 2;
-        luY_ = sprites[i].Y - sprites[i].image.height / 2;
-        rlX_ = sprites[i].X + sprites[i].image.width / 2;
-        rlY_ = sprites[i].Y + sprites[i].image.height / 2;
-        if ((luX > rlX_ || luX_ > rlX) || (luY > rlY_ || luY_ > rlY))
-            continue;
-        return true;
-    }
-    return false;
-}
-
-function reassign_sprite_priorities() {
-    priorities = new Array();
-    for (var i = 0; i < sprites.length; i++)
-        if (!check_overlap_without_priority(i))
-            sprites[i].priority = 0;
-    for (var i = 0; i < sprites.length; i++) {
-        var priority_exists = false;
-        var insert_after = -1;
-        for (var j = 0; j < priorities.length; j++) {
-            if (priorities[j] == sprites[i].priority) {
-                priority_exists = true;
-                break;
-            }
-            if (sprites[i].priority > priorities[j])
-                insert_after = j;
-        }
-        if (!priority_exists) {
-            switch (insert_after) {
-                case -1:
-                    priorities.unshift(sprites[i].priority);
-                    break;
-                case priorities.length - 1:
-                    priorities.push(sprites[i].priority);
-                    break;
-                default:
-                    priorities.splice(insert_after + 1, 0, sprites[i].priority);
-            }
-        }
-    }
-    for (var i = 0; i < sprites.length; i++) {
-        for (var j = 0; j < priorities.length; j++)
-            if (sprites[i].priority == priorities[j]) {
-                sprites[i].priority = j;
-                break;
-            }
-    }
-}
-
-function remove_sprite(sprite_index) {
-    if (sprite_index < sprites.length) {
-        sprites.splice(sprite_index, 1);
-        return true;
-    }
-    return false;
-}
-
-function check_sprite_at(x, y) {
-    var lowest_priority = -1;
-    var res = -1;
-    for (var i = 0; i < sprites.length; i++) {
-        if (Math.abs(x - sprites[i].X) <= sprites[i].image.width / 2 && Math.abs(y - sprites[i].Y) <= sprites[i].image.height / 2)
-            if (lowest_priority == -1 || sprites[i].priority < lowest_priority) {
-                res = i;
-                lowest_priority = sprites[i].priority;
-            }
-    }
-    return res;
-}
-
-function check_overlap_with_priority(sprite_index) {
-    var luX = sprites[sprite_index].X - sprites[sprite_index].image.width / 2;
-    var luY = sprites[sprite_index].Y - sprites[sprite_index].image.height / 2;
-    var rlX = sprites[sprite_index].X + sprites[sprite_index].image.width / 2;
-    var rlY = sprites[sprite_index].Y + sprites[sprite_index].image.height / 2;
-    var luX_, luY_, rlX_, rlY_;
-    var lowest_priority = sprites[sprite_index].priority;
-    var index_of_lowest_prioritized_sprite = -1;
-    for (var i = 0; i < sprites.length; i++) {
-        if (i == sprite_index || sprites[i].priority < sprites[sprite_index].priority)
-            continue;
-        luX_ = sprites[i].X - sprites[i].image.width / 2;
-        luY_ = sprites[i].Y - sprites[i].image.height / 2;
-        rlX_ = sprites[i].X + sprites[i].image.width / 2;
-        rlY_ = sprites[i].Y + sprites[i].image.height / 2;
-        if ((luX > rlX_ || luX_ > rlX) || (luY > rlY_ || luY_ > rlY))
-            continue;
-        sprites[i].priority++;
-        check_overlap_with_priority(i);
-        if (lowest_priority == sprites[sprite_index].priority || sprites[i].priority < lowest_priority) {
-            lowest_priority = sprites[i].priority;
-            index_of_lowest_prioritized_sprite = i;
-        }
-    }
-    return index_of_lowest_prioritized_sprite;
-}
-
-function move_sprite(sprite_index, x, y) {
-    sprites[sprite_index].X = allowable_x(sprites[sprite_index].X + x);
-    sprites[sprite_index].Y = allowable_y(sprites[sprite_index].Y + y);
-}
-
-function draw_sprite(sprite_index) {
-    context.globalAlpha = sprites[sprite_index].alpha;
-    context.drawImage(sprites[sprite_index].image, sprites[sprite_index].X - half_sprite_size, sprites[sprite_index].Y - half_sprite_size, sprites[sprite_index].image.width, sprites[sprite_index].image.height);
-}
-
-//---------------------------------------------- Menu
-
-var menu_items = new Array();
-
-var top_menu_item_Y = 0;
+var menu;
 var margin_between_menu_items = 5;
-var menu_font = "20px Helvetica";
 var menu_font_size = 20;
-
-function Menu_Item(element_name) {
-    var ei = look_up_element(element_name);
-    this.ei = ei;
-    this.image = new Image();
-    this.image.width = sprite_size;
-    this.image.height = sprite_size;
-    this.image.src = sources[elements[ei].si];
+var menu_font = "Helvetica";
+Menu_Item.prototype = new Element_Sprite();
+Menu_Item.prototype.constructor = Menu_Item;
+function Menu_Item(element_index) {
+    Element_Sprite.call(this, playground_width, menu.sprite_count * (element_sprite_size + margin_between_menu_items), element_index);
+    this.attach_decorator(new Sprite(0, 0, canvas.width - playground_width - element_sprite_size, this.h), element_sprite_size, 0);
+    if (this.decorator)
+        this.decorator.attach_text(new Text(elements[element_index].name, menu_font_size, menu_font));
     return this;
+}
+
+Menu_Item.prototype.draw = function () {
+    Element_Sprite.prototype.draw.call(this);
+    context.beginPath();
+    context.lineWidth = "1";
+    context.strokeStyle = "grey";
+    context.moveTo(playground_width, this.coord.y + element_sprite_size + 3);
+    context.lineTo(canvas.width, this.coord.y + element_sprite_size + 3);
+    context.stroke();
 }
 
 function look_up_menu_item(element_name) {
-    for (var i = 0; i < menu_items.length; i++)
-        if (string_compare(names[elements[menu_items[i].ei].ni], element_name))
+    for (var i = 0; i < menu.sprite_count; i++)
+        if (string_compare(menu.root.children[i], element_name))
             return i;
     return -1;
 }
 
 function create_menu_item(element_name) {
-    if (look_up_menu_item(element_name) == -1) {
-        menu_items.push(new Menu_Item(element_name));
+    var ei = look_up_element_by_name(element_name);
+    if (validate_element_index(ei)) {
+        menu.add_sprite(new Menu_Item(ei));
         return true;
     }
     return false;
 }
 
-function draw_menu_item(menu_index) {
-    var Y = top_menu_item_Y + menu_index * (sprite_size + margin_between_menu_items);
-    if (0 - sprite_size <= Y || Y <= canvas.height) {
-        context.drawImage(menu_items[menu_index].image, playground_width, Y, sprite_size, sprite_size);
-        context.font = menu_font;
-        context.fillText(names[elements[menu_items[menu_index].ei].ni], playground_width + sprite_size + margin_between_menu_items, Y + (sprite_size - menu_font_size) / 2);
-        context.beginPath();
-        context.lineWidth = "1";
-        context.strokeStyle = "grey";
-        context.moveTo(playground_width, Y + sprite_size + 3);
-        context.lineTo(canvas.width, Y + sprite_size + 3);
-        context.stroke();
-    }
-}
+//---------------------------------------------- Engine-Inherited - Playground
 
-function get_menu_index(Y) {
-    var leftover = (Y - top_menu_item_Y) % (sprite_size + margin_between_menu_items);
-    var index = (Y - top_menu_item_Y - leftover) / (sprite_size + margin_between_menu_items);
-    if (leftover > sprite_size || index >= menu_items.length)
-        index = -1;
-    return index;
-}
+var playground;
+var playground_width;
 
-//---------------------------------------------- Mouse Events
-
-canvas.addEventListener("mousedown", onMouseDown);
-canvas.addEventListener("mousemove", onMouseMove);
-canvas.addEventListener("mouseup", onMouseUp);
-
-var selected_sprite = -1;
-var prev_X = -1;
-var prev_Y = -1;
-
-var mouse_state = 0;
-var delta_X = 0;
-var delta_Y = 0;
-var overlapped_sprite_index_1 = -1;
-var overlapped_sprite_index_2 = -1;
-
-var sprite_to_create;
-var sprite_creation_X = -1;
-var sprite_creation_Y = -1;
-
-function mouse_pos_within_canvas(e) {
-    this.X = e.clientX - canvas_x;
-    this.Y = e.clientY - canvas_y;
+Playground.prototype = new World();
+Playground.prototype.constructor = Playground;
+function Playground() {
+    World.call(this);
+    this.input_event_subscription_manager = input_event_subscription_manager;
+    this.si = -1;
+    this.latest_drag = null;
+    this.latest_element = -1;
+    var si = this.input_event_subscription_manager.add_subscriber(this);
+    if (si >= 0)
+        this.si = si;
+    else
+        throw "Input Event Subscription Error";
     return this;
 }
 
-function onMouseDown(e) {
-    pos = new mouse_pos_within_canvas(e);
-    if (pos.X <= playground_width) {
-        overlapped_sprite_index_1 = -1;
-        overlapped_sprite_index_2 = -1;
-        selected_sprite = check_sprite_at(pos.X, pos.Y);
-        if (selected_sprite != -1) {
-            mouse_state = 1;
-            prev_X = pos.X;
-            prev_Y = pos.Y;
-        } else
-            mouse_state = 0;
-    } else {
-        var mi = get_menu_index(pos.Y);
-        if (mi != -1) {
-            mouse_state = 4;
-            sprite_to_create = names[elements[menu_items[mi].ei].ni];
-            sprite_creation_X = pos.X;
-            sprite_creation_Y = pos.Y;
-            prev_X = pos.X;
-            prev_Y = pos.Y;
-        } else
-            mouse_state = 0;
+Playground.prototype.update = function () {
+    if (this.selected_world_node && this.latest_drag) {
+        this.selected_world_node.sprite.move(this.latest_drag);
+        this.latest_drag.x = 0;
+        this.latest_drag.y = 0;
     }
 }
 
-function onMouseMove(e) {
-    if (mouse_state == 2 || mouse_state == 1) {
-        mouse_state = 2;
-        pos = new mouse_pos_within_canvas(e);
-        delta_X += pos.X - prev_X;
-        delta_Y += pos.Y - prev_Y;
-        prev_X = pos.X;
-        prev_Y = pos.Y;
-    }
-}
-
-function onMouseUp(e) {
-    if (mouse_state == 2) {
-        pos = new mouse_pos_within_canvas(e);
-        if (pos.X <= playground_width) {
-            if (selected_sprite != -1) {
-                mouse_state = 3;
-                prev_X = -1;
-                prev_Y = -1;
-                sprites[selected_sprite].alpha = 1;
-                overlapped_sprite_index_1 = selected_sprite;
-                selected_sprite = -1;
+Playground.prototype.handle_input_event = function (event) {
+    switch (event.type) {
+        case Input_Event_Type.SELECT: {
+            if (this.input_event_subscription_manager.set_exclusive(this.si, Input_Event_Type.SELECT)) {
+                this.selected_world_node = null;
+                var queue = this.node_queue();
+                for (var i = queue.length - 1; i >= 0; i--) {
+                    if (queue[i].sprite.covers_coord_with_decorator(event.coord)) {
+                        this.selected_world_node = queue[i];
+                        break;
+                    }
+                }
+                if (this.selected_world_node) {
+                    this.selected_world_node.parent.remove_child(this.selected_world_node.index_at_parent);
+                    this.selected_world_node.sprite.alpha = 0.5;
+                    this.latest_drag = new Coordinate(0, 0);
+                    if (!this.input_event_subscription_manager.set_full_exclusive(this.si))
+                        throw "Subscription Mutex Conditions Error";
+                } else
+                    if (!this.input_event_subscription_manager.release_exclusive(this.si, Input_Event_Type.SELECT))
+                        throw "Subscription Mutex Conditions Error";
             } else
-                mouse_state = 0;
-        } else {
-            if (selected_sprite != -1) {
-                mouse_state = 5;
-            } else
-                mouse_state = 0;
+                throw "Subscription Mutex Conditions Error";
+            break;
         }
-    } else if (mouse_state == 4) {
-        sprite_to_create = "";
-        sprite_creation_X = -1;
-        sprite_creation_Y = -1;
-        mouse_state = 0;
-    } else if (mouse_state == 1) {
-        mouse_state = 5;
+        case Input_Event_Type.DRAG: {
+            if (this.selected_world_node) {
+                if (this.input_event_subscription_manager.set_exclusive(this.si, Input_Event_Type.DRAG))
+                    this.latest_drag = this.latest_drag.add(event.coord);
+                else
+                    throw "Subscription Mutex Conditions Error";
+            }
+            break;
+        }
+        case Input_Event_Type.DROP: {
+            if (this.selected_world_node) {
+                if (this.input_event_subscription_manager.set_exclusive(this.si, Input_Event_Type.DROP)) {
+                    this.latest_drag = this.latest_drag.add(event.coord);
+                    this.selected_world_node.sprite.move(this.latest_drag);
+                    this.latest_drag = null;
+                    this.selected_world_node.sprite.alpha = 1;
+                    if (this.selected_world_node.sprite.coord.x <= playground_width) {
+                        var overlap_node = this.add_node(this.selected_world_node);
+                        if (overlap_node) {
+                            var res = seek_result(overlap_node.sprite.ei, this.selected_world_node.sprite.ei);
+                            if (res != -1) {
+                                overlap_node.remove_child(this.selected_world_node.index_at_parent);
+                                overlap_node.parent.remove_child(overlap_node.index_at_parent);
+                                var new_coord = overlap_node.sprite.coord.add(this.selected_world_node.sprite.coord).scale(0.5);
+                                this.add_sprite(new Element_Sprite(new_coord.x, new_coord.y, res));
+                                this.latest_element = res;
+                            }
+                        }
+                    }
+                    this.selected_world_node = null;
+                    if (!this.input_event_subscription_manager.release_full_exclusive(this.si))
+                        throw "Subscription Mutex Conditions Error";
+                } else
+                    throw "Subscription Mutex Conditions Error";
+            }
+            this.selected_world_node = null;
+            break;
+        }
+    }
+}
+
+//---------------------------------------------- Engine-Inherited - Menu
+
+Menu.prototype = new World();
+Menu.prototype.constructor = Menu;
+function Menu(monitored_playground) {
+    World.call(this);
+    this.input_event_subscription_manager = input_event_subscription_manager;
+    this.si = -1;
+    this.playground = monitored_playground;
+    var si = this.input_event_subscription_manager.add_subscriber(this);
+    if (si >= 0)
+        this.si = si;
+    else
+        throw "Input Event Subscription Error";
+    return this;
+}
+
+Menu.prototype.handle_input_event = function (event) {
+    switch (event.type) {
+        case Input_Event_Type.SELECT: {
+            if (this.input_event_subscription_manager.set_exclusive(this.si, Input_Event_Type.SELECT)) {
+                this.selected_world_node = null;
+                for (var i = this.sprite_count - 1; i >= 0; i--) {
+                    if (this.root.children[i].sprite.covers_coord_with_decorator(event.coord)) {
+                        this.selected_world_node = this.root.children[i];
+                        break;
+                    }
+                }
+                if (this.selected_world_node) {
+                    this.playground.latest_drag = new Coordinate(0, 0);
+                    var new_sprite = new Element_Sprite(event.coord.x, event.coord.y, this.selected_world_node.sprite.ei);
+                    new_sprite.move(new Coordinate(-new_sprite.x_offset, -new_sprite.y_offset));
+                    new_sprite.alpha = 0.5;
+                    var new_node = new WorldNode(new_sprite);
+                    new_node.world = this.playground;
+                    this.playground.selected_world_node = new_node;
+                    if (!this.input_event_subscription_manager.release_exclusive(this.si, Input_Event_Type.SELECT))
+                        throw "Subscription Mutex Conditions Error";
+                    if (!this.input_event_subscription_manager.set_full_exclusive(this.playground.si))
+                        throw "Subscription Mutex Conditions Error";
+                } else
+                    if (!this.input_event_subscription_manager.release_exclusive(this.si, Input_Event_Type.SELECT))
+                        throw "Subscription Mutex Conditions Error";
+            } else
+                throw "Subscription Mutex Conditions Error";
+            break;
+        }
+    }
+}
+
+Menu.prototype.element_exists = function (ei) {
+    for (var i = this.sprite_count - 1; i >= 0; i--)
+        if (this.root.children[i].sprite.ei == ei)
+            return true;
+    return false;
+}
+
+Menu.prototype.update = function () {
+    if (this.playground.latest_element != -1 && !this.element_exists(this.playground.latest_element)) {
+        this.add_sprite(new Menu_Item(this.playground.latest_element));
+        this.playground.latest_element = -1;
     }
 }
 
 //---------------------------------------------- Game Design
 
-function load_content() {
-    create_element("air", "http://i.imgur.com/PdoBAcx.png");
-    create_element("earth", "http://i.imgur.com/J72A0Il.png");
-    create_element("fire", "http://i.imgur.com/OHnZET1.png");
-    create_element("water", "http://i.imgur.com/oDLGUuT.png");
-    create_element("dust", "http://i.imgur.com/hpWgW3y.png");
-    create_element("energy", "http://i.imgur.com/RgsM7YR.png");
-    create_element("rain", "http://i.imgur.com/O5Xdc30.png");
-    create_element("lava", "http://i.imgur.com/ZEQOqd1.png");
-    create_element("mud", "http://i.imgur.com/jHtQtWT.png");
-    create_element("steam", "http://i.imgur.com/cjtPfty.png");
+function load_texture() {
+    add_texture("http://i.imgur.com/PdoBAcx.png");
+    add_texture("http://i.imgur.com/J72A0Il.png");
+    add_texture("http://i.imgur.com/OHnZET1.png");
+    add_texture("http://i.imgur.com/oDLGUuT.png");
+    add_texture("http://i.imgur.com/hpWgW3y.png");
+    add_texture("http://i.imgur.com/RgsM7YR.png");
+    add_texture("http://i.imgur.com/O5Xdc30.png");
+    add_texture("http://i.imgur.com/ZEQOqd1.png");
+    add_texture("http://i.imgur.com/jHtQtWT.png");
+    add_texture("http://i.imgur.com/cjtPfty.png");
+}
 
+function load_elements() {
+    create_element("air", 0);
+    create_element("earth", 1);
+    create_element("fire", 2);
+    create_element("water", 3);
+    create_element("dust", 4);
+    create_element("energy", 5);
+    create_element("rain", 6);
+    create_element("lava", 7);
+    create_element("mud", 8);
+    create_element("steam", 9);
+}
+
+function load_rules() {
     create_rule("air", "earth", "dust");
     create_rule("air", "fire", "energy");
     create_rule("air", "water", "rain");
     create_rule("earth", "fire", "lava");
     create_rule("earth", "water", "mud");
     create_rule("fire", "water", "steam");
+}
 
+function load_menu() {
     create_menu_item("air");
     create_menu_item("earth");
     create_menu_item("fire");
     create_menu_item("water");
 }
 
-//---------------------------------------------- Rendering
+function init_game() {
+    init_engine();
+    playground_width = Math.round(canvas.width * 0.8);
+    load_texture();
+    load_elements();
+    load_rules();
+    playground = new Playground();
+    menu = new Menu(playground);
+    load_menu();
+}
+
+//---------------------------------------------- Run
 
 function update() {
-    switch (mouse_state) {
-        case 1: {//Mouse down
-            if (selected_sprite == -1)
-                break;
-            sprites[selected_sprite].priority = 0;
-            sprites[selected_sprite].alpha = 0.5;
-            check_overlap_with_priority(selected_sprite);
-            reassign_sprite_priorities();
-        }
-        case 2: {//Mouse move
-            if (selected_sprite == -1)
-                break;
-            move_sprite(selected_sprite, delta_X, delta_Y);
-            delta_X = 0;
-            delta_Y = 0;
-            check_overlap_with_priority(selected_sprite);
-            reassign_sprite_priorities();
-            break;
-        }
-        case 3: {//Mouse up
-            reassign_sprite_priorities();
-            if (overlapped_sprite_index_1 == -1) {
-                mouse_state = 0;
-                break;
-            }
-            overlapped_sprite_index_2 = check_overlap_with_priority(overlapped_sprite_index_1);
-            if (overlapped_sprite_index_2 != -1) {
-                var result_name = seek_result_name(names[elements[sprites[overlapped_sprite_index_1].ei].ni], names[elements[sprites[overlapped_sprite_index_2].ei].ni]);
-                if (result_name) {
-                    var new_sprite_X = (sprites[overlapped_sprite_index_1].X + sprites[overlapped_sprite_index_2].X) / 2;
-                    var new_sprite_Y = (sprites[overlapped_sprite_index_1].Y + sprites[overlapped_sprite_index_2].Y) / 2;
-                    if (overlapped_sprite_index_1 < overlapped_sprite_index_2) {
-                        remove_sprite(overlapped_sprite_index_2);
-                        remove_sprite(overlapped_sprite_index_1);
-                    } else {
-                        remove_sprite(overlapped_sprite_index_1);
-                        remove_sprite(overlapped_sprite_index_2);
-                    }
-                    reassign_sprite_priorities();
-                    create_menu_item(result_name);
-                    create_sprite(result_name, new_sprite_X, new_sprite_Y);
-                    check_overlap_with_priority(sprites.length - 1);
-                    reassign_sprite_priorities();
-                }
-                overlapped_sprite_index_1 = -1;
-                overlapped_sprite_index_2 = -1;
-            }
-            mouse_state = 0;
-            break;
-        }
-        case 4: {//Mouse down in side bar area
-            create_sprite(sprite_to_create, sprite_creation_X, sprite_creation_Y);
-            selected_sprite = sprites.length - 1;
-            sprites[selected_sprite].alpha = 0.5;
-            mouse_state = 1;
-            break;
-        }
-        case 5: {//Mouse up in side bar area
-            if (selected_sprite != -1) {
-                remove_sprite(selected_sprite);
-                selected_sprite = -1;
-            }
-            mouse_state = 0;
-            break;
-        }
-    }
+    playground.update();
+    menu.update();
 }
 
 function draw() {
     canvas.width = canvas.width;
-
     //Draw bounds
     context.beginPath();
     context.lineWidth = "1";
@@ -523,19 +358,9 @@ function draw() {
     context.lineTo(playground_width, canvas.height);
     context.stroke();
 
-    //Draw sidebar
-    for (var i = 0; i < menu_items.length; i++)
-        draw_menu_item(i);
+    playground.draw();
 
-    //Draw sprites in prioritized order
-    var highest_priority = 0;
-    for (var i = 0; i < sprites.length; i++)
-        if (sprites[i].priority > highest_priority)
-            highest_priority = sprites[i].priority;
-    for (var p = highest_priority; p >= 0; p--)
-        for (var i = 0; i < sprites.length; i++)
-            if (sprites[i].priority == p)
-                draw_sprite(i);
+    menu.draw();
 }
 
 function game_loop() {
@@ -543,7 +368,5 @@ function game_loop() {
     draw();
 }
 
-//---------------------------------------------- Run
-
-load_content();
+init_game();
 setInterval(game_loop, 16.67);
