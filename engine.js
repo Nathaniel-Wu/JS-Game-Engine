@@ -112,7 +112,7 @@ function Sprite(x, y, w, h) {
         this.bound = { left_upper: new Coordinate(x, y), right_lower: new Coordinate(x + w, y + h) };
 
         this.alpha = 1.0;
-        this.texture = null;
+        this.texture = -1;
         this.text = null;
         this.decorator = null;
         this.out_of_canvas = true;
@@ -207,7 +207,7 @@ Sprite.prototype.move_to = function (coord) {
 }
 
 Sprite.prototype.draw = function () {
-    if (this.texture) {
+    if (this.texture!=-1) {
         context.globalAlpha = this.alpha;
         context.drawImage(textures[this.texture].image, this.coord.x, this.coord.y, this.w, this.h);
     }
