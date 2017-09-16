@@ -27,353 +27,937 @@ function init_engine() {
 
 //---------------------------------------------- Utilities
 
-function string_compare(str_1, str_2) {
-    return str_1 < str_2 ? false : (str_1 > str_2 ? false : true);
+class Utilities {
+    static string_compare(str_1, str_2) {
+        return str_1 < str_2 ? false : (str_1 > str_2 ? false : true);
+    }
+
+    static isInteger(num) {
+        if (num === parseInt(num, 10))
+            return true;
+        return false;
+    }
+
+    static getRandomInt(min, max) {//min ~ (max - 1)
+        min = Math.ceil(min);
+        max = Math.floor(max);
+        return Math.floor(Math.random() * (max - min)) + min;
+    }
 }
 
-function isInteger(num) {
-    if (num === parseInt(num, 10))
-        return true;
-    return false;
-}
+//---------------------------------------------- Vector
 
-//---------------------------------------------- Asset Management
+class Vector {
+    constructor(x, y) {
+        this.x = x;
+        this.y = y;
+    }
 
-var textures = new Array();
+    clone() {
+        return new Vector(this.x, this.y);
+    }
 
-function Texture(src) {
-    this.src = src;
-    this.image = new Image();
-    this.image.src = src;
-    return this;
-}
+    copy(v) {
+        if (v instanceof Vector)
+            return new Vector(v.x, v.y);
+        else
+            throw "Non-Vector parameter error";
+    }
 
-function add_texture(src) {
-    for (var i = 0; i < textures.length; i++)
-        if (string_compare(textures[i].src, src))
-            return -1;
-    textures.push(new Texture(src));
-    return textures.length - 1;//returns the new texture's index;
-}
+    subtract(v) {
+        if (v instanceof Vector)
+            return new Vector(this.x - v.x, this.y - v.y);
+        else
+            throw "Non-Vector parameter error";
+    }
 
-function validate_texture_index(index) {
-    if (isInteger(index) && 0 <= index && index < textures.length)
-        return true;
-    return false;
-}
+    add(v) {
+        if (v instanceof Vector)
+            return new Vector(this.x + v.x, this.y + v.y);
+        else
+            throw "Non-Vector parameter error";
+    }
 
-function Text(text, size, font) {
-    this.text = text;
-    this.size = size;
-    this.font = size + "px " + font;
-    return this;
+    dot(v) {
+        if (v instanceof Vector)
+            return this.x * v.x + this.y * v.y;
+        else
+            throw "Non-Vector parameter error";
+    }
+
+    scale(scaler) {
+        return new Vector(this.x * scaler, this.y * scaler);
+    }
+
+    normalize() {
+        return this.scale(1 / this.norm());
+    }
+
+    norm() {
+        return Math.sqrt(this.x * this.x + this.y * this.y);
+    }
+
+    mirror(normal) {
+        if (normal instanceof Vector) {
+            var T = this.normalize();
+            var N = normal.normalize();
+            return T.scale(2 * N.dot(T)).add(T);
+        } else
+            throw "Non-Vector parameter error";
+    }
 }
 
 //---------------------------------------------- Coordinate
 
-function Coordinate(x, y) {
-    if (isInteger(x) && isInteger(y)) {
-        this.x = x;
-        this.y = y;
-        return this;
+class Coordinate extends Vector {
+    constructor(x, y) {
+        if (Utilities.isInteger(x) && Utilities.isInteger(y))
+            super(x, y);
+        else
+            throw "Non-integer parameter";
     }
-    return null;
+
+    clone() {
+        return new Coordinate(this.x, this.y);
+    }
+
+    copy(c) {
+        if (c instanceof Coordinate)
+            return new Coordinate(c.x, c.y);
+        else
+            throw "Non-Coordinate parameter error";
+    }
+
+    subtract(c) {
+        if (c instanceof Coordinate)
+            return super.subtract(c);
+        else
+            throw "Non-Coordinate parameter error";
+    }
+
+    add(v) {
+        if (v instanceof Coordinate || (v instanceof Vector && Utilities.isInteger(v.x) && Utilities.isInteger(v.y))) {
+            var res = super.add(v);
+            return new Coordinate(res.x, res.y);
+        }
+        else
+            throw "Non-Coordinate parameter error";
+    }
+
+    scale(scaler) {
+        return new Coordinate(Math.round(this.x * scaler), Math.round(this.y * scaler));
+    }
 }
 
-Coordinate.prototype.copy = function () {
-    return new Coordinate(this.x, this.y);
+//---------------------------------------------- Ray
+
+class Ray {
+    constructor(origin, direction) {
+        if (!(origin instanceof Coordinate || (origin instanceof Vector && Utilities.isInteger(origin.x) && Utilities.isInteger(origin.y))))
+            throw "Non-Coordinate parameter error";
+        if (!direction instanceof Vector)
+            throw "Non-Vector parameter error";
+        this.origin = new Coordinate(origin.x, origin.y);
+        this.direction = new Vector(direction.x, direction.y);
+    }
+
+    ray_intersection(r) {
+        if (!r instanceof Ray)
+            throw "Non-Ray parameter error";
+        var x1 = this.direction.x;
+        var y1 = this.direction.y;
+        var x2 = r.direction.x;
+        var y2 = r.direction.y;
+        var delta_r = r.origin.subtract(this.origin);
+        var x = delta_r.x;
+        var y = delta_r.y;
+        if (y2 != 0)
+            var ratio = x2 / y2;
+        else
+            return null;
+        var tmp = x1 - y1 * ratio;
+        if (tmp != 0)
+            var t_1 = (x + y * ratio) / (tmp);
+        else
+            return null;
+        var t_2 = (t_1 * y1 - y) / y2;
+        var i = this.origin.add(this.direction.scale(t_1));
+        return { intersect: i, t1: t_1, t2: t_2 };
+    }
 }
 
-Coordinate.prototype.subtract = function (coord) {
-    return new Coordinate(this.x - coord.x, this.y - coord.y);
+//---------------------------------------------- ID Generator
+
+class IDGenerator {
+    constructor(size) {
+        this.max = size - 1;
+        this.id_pool = new Array();
+        for (var i = 0; i < size; i++)
+            this.id_pool.push(i);
+        this.assigned_ids = new Array();
+    }
+
+    get_id() {
+        var res;
+        if (this.max < 0)
+            throw "ID pool dry out error."
+        if (this.max == 0)
+            res = this.id_pool[0];
+        else {
+            var i = Utilities.getRandomInt(0, this.max);
+            res = this.id_pool[i];
+            var buffer = this.id_pool[this.max];
+            this.id_pool[this.max] = this.id_pool[i];
+            this.id_pool[i] = buffer;
+        }
+        this.max--;
+        this.assigned_ids.push(res);
+        return res;
+    }
+
+    get_id_index(id) {
+        for (var i = 0; i < this.assigned_ids.length; i++) {
+            if (this.assigned_ids[i] === id)
+                return i;
+        }
+        return -1;
+    }
+
+    validate_id(id) {
+        if (this.get_id_index(id) == -1)
+            return false;
+        return true;
+    }
+
+    recycle_id(id) {
+        var id_index = this.get_id_index(id);
+        if (id_index == -1)
+            throw "Invalid Texture ID error";
+        this.assigned_ids.splice(id_index, 1);
+        this.max++;
+        this.id_pool[max] = id;
+    }
 }
 
-Coordinate.prototype.add = function (coord) {
-    return new Coordinate(this.x + coord.x, this.y + coord.y);
+//---------------------------------------------- GameObject
+
+class GObject {
+    constructor(x, y, w, h) {
+        if (!canvas)
+            throw "Canvas existence error";
+        if (!Utilities.isInteger(x) || !Utilities.isInteger(y) || !Utilities.isInteger(w) || !Utilities.isInteger(h))
+            throw "Non-integer parameter error";
+        this.id = GObject.get_id_generator().get_id();
+        GObject.get_instance_array()[this.id] = this;
+        this.coord = new Coordinate(x, y);
+        this.w = w;
+        this.h = h;
+        this.movable = true;
+        this.visble = true;
+        this.moveVect = null;
+    }
+
+    move(vect) {
+        if (!vect instanceof Vector)
+            throw "Non-Vector parameter error";
+
+        if (this.movable)
+            if (!this.moveVect)
+                this.moveVect = vect;
+            else {
+                this.moveVect = this.moveVect.add(vect);
+
+            }
+    }
+
+    move_to(coord) {
+        if (!coord instanceof Coordinate)
+            throw "Non-Coordinate parameter error";
+        if (this.movable)
+            this.move(coord.subtract(this.coord.add(this.moveVect)));
+    }
+
+    update() {
+        if (this.movable && this.moveVect) {
+            this.coord = this.coord.add(this.moveVect);
+            this.moveVect = null;
+        }
+    }
+
+    draw() {
+        if (this.visble)
+            this.actual_draw();
+    }
+
+    actual_draw() { }
+
+    static get_instance(id) {
+        return this.get_instance_array()[id];
+    }
+
+    static rm_instance_ref(id) {
+        this.get_instance_array()[id] = null;
+        this.get_id_generator().recycle_id(id);
+    }
+
+    static get_instance_array() {
+        if (!this.instance_array)
+            this.instance_array = new Array();
+        return this.instance_array;
+    }
+
+    static get_id_generator() {
+        if (!this.id_generator)
+            this.id_generator = new IDGenerator(10000);
+        return this.id_generator;
+    }
 }
 
-Coordinate.prototype.scale = function (scaler) {
-    return new Coordinate(Math.round(this.x * scaler), Math.round(this.y * scaler));
+//---------------------------------------------- Bounding Volume
+
+class BoundingVolume {
+    constructor(x_offset, y_offset, w, h) {
+        if (!Utilities.isInteger(x_offset) || !Utilities.isInteger(y_offset) || !Utilities.isInteger(w) || !Utilities.isInteger(h))
+            throw "Non-integer parameter error";
+        this.coord_offset = new Coordinate(x_offset, y_offset);
+        this.w = w;
+        this.h = h;
+        this.GObj = null;
+        this.parent = null;
+        this.children = null;
+    }
+
+    get_actual_coordinate() {
+        if (!this.GObj)
+            throw "GObject unset error";
+        return this.GObj.coord.add(this.coord_offset);
+    }
+
+    get_center_coordinate() {
+        return this.get_actual_coordinate().add(new Vector(Math.round(this.w / 2), Math.round(this.h / 2)));
+    }
+
+    attach_child_BoundingVolume(bv) {
+        if (!bv instanceof BoundingVolume)
+            throw "Non-BoundingVolume parameter error";
+        if (!this.children)
+            this.children = new Array();
+        for (var i = 0; i < this.children.length; i++)
+            if (bv === this.children[i])
+                throw "Child BoundingVolume already exists error";
+        if ((bv.coord_offset.x + bv.w) < (this.coord_offset.x + this.w) || (bv.coord_offset.x + bv.w) > (this.coord_offset.x + this.w) || (bv.coord_offset.y + bv.h) < (this.coord_offset.y + this.h) || (bv.coord_offset.y + bv.h) > (this.coord_offset.y + this.h))
+            throw "Child BoundingVolume out of parent BoundingVolume error";
+        bv.GObj = this.GObj;
+        bv.parent = this;
+        this.children.push(bv);
+    }
+
+    check_coordinate(coord) {
+        if (!coord instanceof Coordinate)
+            throw "Non-Coordinate parameter error";
+        var actual_coordinate = this.get_actual_coordinate();
+        if (coord.x < actual_coordinate.x || (actual_coordinate.x + this.w) < coord.x || coord.y < actual_coordinate.y || (actual_coordinate.y + this.h) < coord.y)
+            return false;
+        if (this.children)
+            for (var i = 0; i < this.children.length; i++)
+                if (!this.children[i].check_coordinate(coord))
+                    return false;
+        return true;
+    }
+
+    Minkowski_add(bv) {
+        if (!bv instanceof BoundingVolume)
+            throw "Non-BoundingVolume parameter error";
+        var coord_offset = this.coord_offset.add(bv.get_actual_coordinate().add(this.get_center_coordinate().subtract(bv.get_center_coordinate())));
+        var MS = new BoundingVolume(coord_offset.x, coord_offset.y, this.w + bv.w, this.h + bv.h);
+        MS.GObj = this.GObj;
+        return MS;
+    }
+
+    ray_intersection(r) {
+        if (!r instanceof Ray)
+            throw "Non-Ray parameter error";
+        var a = this.actual_coordinate();
+        var sides = new Array();
+        sides.push(new Ray(a, new Vector(this.w, 0)));//Top
+        sides.push(new Ray(a.add(new Vector(0, this.h)), new Vector(this.w, 0)));//Bottom
+        sides.push(new Ray(a, new Vector(0, this.h)));//Left
+        sides.push(new Ray(a.add(new Vector(this.w, 0)), new Vector(0, this.h)));//Right
+        var intersections = new Array();
+        for (var i = 0; i < sides.length; i++)
+            intersections.push(sides[i].ray_intersection(r));
+        var count = new Array();
+        for (var i = 0; i < sides.length; i++)
+            if (intersections[i] && (0 < intersections[i].t1 && intersections[i].t1 < 1) && (0 < intersections[i].t2 && intersections[i].t2 < 1))
+                count.push(i);
+        if (count.length == 0)
+            return null;
+        var index;
+        if (count.length == 1)
+            index = 0;
+        else if (count[0].t2 < count[1].t2)
+            index = 0;
+        else
+            index = 1;
+        var N;
+        if (count[index] == 0 || count[index] == 1)
+            N = new Vector(0, 1);
+        else
+            N = new Vector(1, 0);
+        var reflection = r.mirror(N).scale(-count[index].t2);
+        return new Ray(count[index].intersect, reflection);
+    }
+
+    check_overlap_without_children(bv) {
+        if (!bv instanceof BoundingVolume)
+            throw "Non-BoundingVolume parameter error";
+        var this_ul = this.get_actual_coordinate();
+        var this_lr = this_ul.add(new Coordinate(this.w, this.h));
+        var bv_ul = bv.get_actual_coordinate();
+        var bv_lr = bv_ul.add(new Coordinate(bv.w, bv.h));
+        if ((this_ul.x > bv_lr.x || bv_ul.x > this_lr.x) || (this_ul.y > bv_lr.y || bv_ul.y > this_lr.y))
+            return false;
+        return true;
+    }
+
+    get_children(depth) {
+        switch (depth) {
+            case 0: {
+                var res = new Array();
+                res.push(this);
+                return res;
+                break;
+            }
+            case 1: {
+                if (!this.children)
+                    return this.children;
+                else
+                    return null;
+                break;
+            }
+            default: {
+                if (!Utilities.isInteger(depth))
+                    throw "Non-integer parameter error";
+                else if (depth < 0)
+                    throw "Negative depth parameter error";
+                var res = new Array();
+                for (var i = 0; i < this.children.length; i++) {
+                    var c = this.children[i].get_children(depth - 1);
+                    if (!c)
+                        for (var j = 0; j < c.length; j++)
+                            res.push(c[j]);
+                }
+                if (res.length != 0)
+                    return res;
+                else
+                    return null;
+            }
+        }
+    }
+
+    check_overlap_with_children(bv) {
+        if (!bv instanceof BoundingVolume)
+            throw "Non-BoundingVolume parameter error";
+        var this_depth = 0, bv_depth = 0;
+        var this_max = false, bv_max = false;
+        do {
+            var this_c, bv_c;
+            if (!this_max) {
+                this_c = this.get_children(this_depth)
+                if (!this_c) {
+                    this_depth--;
+                    this_max = true;
+                    this_c = this.get_children(this_depth);
+                } else
+                    this_depth++;
+            }
+            if (!bv_max) {
+                bv_c = bv.get_children(bv_depth)
+                if (!bv_c) {
+                    bv_depth--;
+                    bv_max = true;
+                    bv_c = this.get_children(bv_depth);
+                } else
+                    bv_depth++;
+            }
+            var all_false = true;
+            for (var i = 0; i < this_c.length; i++) {
+                for (var j = 0; j < bv_c.length; j++) {
+                    if (this_c[i].check_overlap_without_children(bv_c[j]))
+                        all_false = false;
+                }
+            }
+            if (all_false)
+                return false;
+            else if (this_max && bv_max)
+                return true;
+        } while (true);
+    }
+}
+
+//---------------------------------------------- Collision
+
+const CPType = { HARD: 0, PASSIVE: 1 };//Collision property type
+
+class Collision {
+    constructor(ray, into, type) {
+        if (!ray instanceof Ray)
+            throw "Non-Ray parameter error";
+        if (!into instanceof CollidableGObject)
+            throw "Non-CollidableGObject parameter error";
+        if (type == CPType.HARD)
+            this.ray = ray;
+        if (type == CPType.PASSIVE)
+            this.into = into;
+    }
+}
+
+class CollidableGObject extends GObject {
+    constructor(x, y, w, h, bv) {
+        if (!bv instanceof BoundingVolume)
+            throw "Non-BoundingVolume parameter error";
+        super(x, y, w, h);
+        this.CollidableGObject_id = CollidableGObject.get_CollidableGObject_id_generator().get_id();
+        CollidableGObject.get_CollidableGObject_instance_array()[this.CollidableGObject_id] = this;
+        this.root_bounding_volume = bv;
+        bv.GObj = this;
+        bv.parent = null;
+        this.CP = CPType.HARD;
+        this.collidable = true;
+    }
+
+    collides(CGO) {
+        if (this.CP == CPType.HARD) {
+            if (!CGO instanceof CollidableGObject)
+                throw "Non-CollidableGObject parameter error";
+            var range = this.root_bounding_volume.Minkowski_add(CGO.root_bounding_volume);
+            var ray = new Ray(CGO.root_bounding_volume.get_center_coordinate(), CGO.moveVect);
+            return range.ray_intersection();
+        } else if (this.CP == CPType.PASSIVE) {
+            var res = this.root_bounding_volume.check_overlap_with_children(CGO.root_bounding_volume);
+            return res;
+        }
+    }
+
+    resolve(collision) {
+        if (!collision instanceof Collision)
+            throw "Non-Collision parameter error";
+    }
+
+    static CGO_update_hard_collision() {
+        var ids = get_CollidableGObject_instance_id_array();
+        var hard_instances = new Array();
+        var hard_nexts = new Array();
+        var hard_collision_ray_collections = new Array();
+        for (var i = 0; i < ids.length; i++) {
+            var instance_i = this.get_CollidableGObject_instance(ids[i]);
+            if (instance_i.collidable && instance_i.CP == CPType.HARD) {
+                hard_instances.push(instance_i);
+                hard_nexts.push(new CollidableGObject(instance_i.coord.x + instance_i.moveVect.x, instance_i.coord.y + instance_i.moveVect.y, instance_i.w, instance_i.h));
+                hard_collision_ray_collections.push(new Array());
+            }
+        }
+        for (var i = 0; i < hard_instances.length; i++) {
+            for (var j = i + 1; j < hard_instances.length; j++) {
+                var collision_j_into_i = hard_nexts[i].collides(hard_instances[j]);
+                var collision_i_into_j = hard_nexts[j].collides(hard_instances[i]);
+                if (collision_j_into_i)
+                    collision_collections[j].push(collision_j_into_i);
+                if (collision_i_into_j)
+                    collision_collections[i].push(collision_i_into_j);
+            }
+        }
+        for (var i = 0; i < hard_instances.length; i++) {
+            var collisions = hard_collision_ray_collections[i];
+            var mean_intersection_x;
+            var mean_intersection_y;
+            var mean_reflection_x;
+            var mean_reflection_y;
+            for (var j = 0; j < collisions.length; j++) {
+                mean_intersection_x += collisions[j].origin.x;
+                mean_intersection_y += collisions[j].origin.y;
+                mean_reflection_x += collisions[j].direction.x;
+                mean_reflection_y += collisions[j].direction.y;
+            }
+            mean_intersection_x = Math.round(mean_intersection_x / collisions.length);
+            mean_intersection_y = Math.round(mean_intersection_y / collisions.length);
+            mean_reflection_x /= collisions.length;
+            mean_reflection_y /= collisions.length;
+            hard_instances[i].resolve(new Collision(new Ray(new Coordinate(mean_intersection_x, mean_intersection_y), new Vector(mean_reflection_x, mean_reflection_y)), null, CPType.HARD));
+        }
+    }
+
+    static CGO_update_passive_collision() {
+        var ids = get_CollidableGObject_instance_id_array();
+        var passive_instances = new Array();
+        for (var i = 0; i < ids.length; i++) {
+            var instance_i = this.get_CollidableGObject_instance(ids[i]);
+            if (instance_i.collidable && instance_i.CP == CPType.PASSIVE) {
+                passsive_instances.push(instance_i);
+            }
+        }
+        for (var i = 0; i < passive_instances.length; i++) {
+            for (var j = i + 1; j < passive_instances.length; j++) {
+                if (passive_instances[i].collides(passive_instances[j]))
+                    passive_instances[j].resolve(new Collision(null, passive_instances[i], CPType.PASSIVE));
+            }
+        }
+    }
+
+    static CGO_update() {
+        CGO_update_hard_collision();
+        CGO_update_passive_collision();
+    }
+
+    static get_CollidableGObject_instance(CollidableGObject_id) {
+        return this.get_CollidableGObject_instance_array()[CollidableGObject_id];
+    }
+
+    static rm_CollidableGObject_instance_ref(CollidableGObject_id) {
+        var array = this.get_CollidableGObject_instance_array();
+        super.rm_instance_ref(array[CollidableGObject_id].id);
+        array[CollidableGObject_id] = null;
+        this.get_CollidableGObject_id_generator().recycle_id(CollidableGObject_id);
+    }
+
+    static get_CollidableGObject_instance_array() {
+        if (!this.CollidableGObject_instance_array)
+            this.CollidableGObject_instance_array = new Array();
+        return this.CollidableGObject_instance_array;
+    }
+
+    static get_CollidableGObject_instance_id_array() {
+        return this.get_CollidableGObject_id_generator().assigned_ids();
+    }
+
+    static get_CollidableGObject_id_generator() {
+        if (!this.CollidableGObject_id_generator)
+            this.CollidableGObject_id_generator = new IDGenerator(1000);
+        return this.CollidableGObject_id_generator;
+    }
+}
+
+//---------------------------------------------- Asset Management
+
+class Texture {
+    constructor(src) {
+        var ids = Texture.get_Texture_id_generator().assigned_ids;
+        for (var i = 0; i < ids.length; i++) {
+            if (Texture.get_Texture_instance(ids[i]).src === src)
+                throw "Texture existence error";
+        }
+        this.Texture_id = Texture.get_Texture_id_generator().get_id();
+        Texture.get_Texture_instance_array()[this.Texture_id] = this;
+        this.src = src;
+        this.image = new Image();
+        this.image.src = src;
+    }
+
+    static validate_Texture_id(Texture_id) {
+        return this.get_Texture_id_generator().validate_id(Texture_id);
+    }
+
+    static get_Texture_instance(Texture_id) {
+        return this.get_Texture_instance_array()[Texture_id];
+    }
+
+    static rm_Texture_instance_ref(Texture_id) {
+        this.get_Texture_instance_array()[Texture_id] = null;
+        this.get_Texture_id_generator().recycle_id(Texture_id);
+    }
+
+    static get_Texture_instance_array() {
+        if (!this.Texture_instance_array)
+            this.Texture_instance_array = new Array();
+        return this.Texture_instance_array;
+    }
+
+    static get_Texture_id_generator() {
+        if (!this.Texture_id_generator)
+            this.Texture_id_generator = new IDGenerator(1000);
+        return this.Texture_id_generator;
+    }
+}
+
+class Text {
+    constructor(text, size, font) {
+        this.text = text;
+        this.size = size;
+        this.font = size + "px " + font;
+    }
 }
 
 //---------------------------------------------- Sprite
 
-function Sprite(x, y, w, h) {
-    if (!canvas)
-        return null;
-    this.coord = new Coordinate(x, y);
-    if (this.coord && isInteger(w) && isInteger(h)) {
-        this.w = w;
-        this.h = h;
-        this.x_offset = Math.round(w / 2);
-        this.y_offset = Math.round(h / 2);
-        this.max_in_canvas_x = (canvas.width - w > 0) ? (canvas.width - w) : 0;
-        this.max_in_canvas_y = (canvas.height - h > 0) ? (canvas.height - h) : 0;
-        this.bound = { left_upper: new Coordinate(x, y), right_lower: new Coordinate(x + w, y + h) };
-
+class Sprite extends CollidableGObject {
+    constructor(x, y, w, h) {
+        var bv = new BoundingVolume(0, 0, w, h);
+        super(x, y, w, h, bv);
+        this.CP = CPType.PASSIVE;
         this.alpha = 1.0;
-        this.texture = -1;
+        this.texture_id = null;
         this.text = null;
         this.decorator = null;
-        this.out_of_canvas = true;
-        return this;
     }
-    return null;
-}
 
-Sprite.prototype.get_allowed_coord = function (coord) {
-    var coord_ = coord.copy();
-    if (!this.out_of_canvas) {
-        if (coord_.x < 0)
-            coord_.x = 0;
-        if (coord_.x > this.max_in_canvas_x)
-            coord_.x = this.max_in_canvas_x;
-        if (coord_.y < 0)
-            coord_.y = 0;
-        if (coord_.y > this.max_in_canvas_y)
-            coord_.y = this.max_in_canvas_y;
+    attach_texture(texture_id) {
+        if (!Texture.validate_Texture_id(texture_id))
+            throw "Invalid Texture ID error";
+        this.texture_id = texture_id;
     }
-    return coord_;
-}
 
-Sprite.prototype.attach_texture = function (texture_index) {
-    if (validate_texture_index(texture_index)) {
-        this.texture = texture_index;
-        return true;
+    attach_text(text) {
+        this.text = text;
     }
-    return false;
-}
 
-Sprite.prototype.attach_text = function (text) {
-    this.text = text;
-}
-
-Sprite.prototype.attach_decorator = function (sub_sprite, x_offset, y_offset) {
-    if (!this.decorator) {
-        sub_sprite.move_to(this.coord.add(new Coordinate(x_offset, y_offset)));
-        this.decorator = sub_sprite;
-    } else {
-        offset_coord = this.coord.add(new Coordinate(x_offset, y_offset)).subtract(this.decorator.coord);
-        this.decorator.attach_decorator(sub_sprite, offset_coord.x, offset_coord.y);
+    attach_decorator(sub_sprite, x_offset, y_offset) {
+        if (!this.decorator) {
+            var actual_coord = this.coord.add(new Coordinate(x_offset, y_offset))
+            sub_sprite.coord.x = actual_coord.x;
+            sub_sprite.coord.y = actual_coord.y;
+            this.decorator = sub_sprite;
+        } else {
+            offset_coord = this.coord.add(new Coordinate(x_offset, y_offset)).subtract(this.decorator.coord);
+            this.decorator.attach_decorator(sub_sprite, offset_coord.x, offset_coord.y);
+        }
     }
-}
 
-Sprite.prototype.covers_coord = function (coord) {
-    if (this.bound.left_upper.x && coord.x <= this.bound.right_lower.x && this.bound.left_upper.y <= coord.y && coord.y <= this.bound.right_lower.y)
-        return true;
-    return false;
-}
-
-Sprite.prototype.covers_coord_with_decorator = function (coord) {
-    if (!this.decorator)
-        return this.covers_coord(coord);
-    else
-        return this.decorator.covers_coord_with_decorator(coord);
-}
-
-Sprite.prototype.overlap = function (sprite) {
-    var res = true;
-    if ((this.bound.left_upper.x > sprite.bound.right_lower.x || sprite.bound.left_upper.x > this.bound.right_lower.x) || (this.bound.left_upper.y > sprite.bound.right_lower.y || sprite.bound.left_upper.y > this.bound.right_lower.y))
-        res = false;
-    return res;
-}
-
-Sprite.prototype.overlap_with_decorator = function (sprite) {
-    if (!this.decorator)
-        return this.overlap(sprite);
-    else
-        return this.decorator.overlap_with_decorator(sprite);
-}
-
-Sprite.prototype.overlap_with_decorator_mutually = function (sprite) {
-    if (!this.decorator)
-        return sprite.overlap_with_decorator(this);
-    else
-        return this.decorator.overlap_with_decorator_mutually(sprite);
-}
-
-Sprite.prototype.move = function (offset_coord) {
-    this.coord = this.coord.add(offset_coord);
-    var lu = this.bound.left_upper.copy();
-    var rl = this.bound.right_lower.copy();
-    this.bound = { left_upper: lu.add(offset_coord), right_lower: rl.add(offset_coord) };
-    if (this.decorator)
-        this.decorator.move(offset_coord);
-}
-
-Sprite.prototype.move_to = function (coord) {
-    var offset_coord = coord.subtract(this.coord);
-    this.move(offset_coord);
-}
-
-Sprite.prototype.draw = function () {
-    if (this.texture!=-1) {
-        context.globalAlpha = this.alpha;
-        context.drawImage(textures[this.texture].image, this.coord.x, this.coord.y, this.w, this.h);
+    check_coordinate_with_decorator(coord) {
+        if (!coord instanceof Coordinate)
+            throw "Non-Coordinate parameter error";
+        var this_res = this.root_bounding_volume.check_coordinate(coord);
+        if (!this.decorator)
+            return this_res;
+        else
+            return this_res || this.decorator.check_coordinate_with_decorator(coord);
     }
-    if (this.text) {
-        context.font = this.text.font;
-        context.fillText(this.text.text, this.coord.x, Math.round(this.coord.y + (this.h - this.text.size) / 2), this.w);
-        context.beginPath();
+
+    check_overlap_with_decorator(sprite) {
+        if (!sprite instanceof Sprite)
+            throw "Non-Sprite parameter error";
+        var this_res = this.root_bounding_volume.check_overlap_without_children(sprite.root_bounding_volume);
+        if (!this.decorator)
+            return this_res;
+        else
+            return this_res || this.decorator.check_overlap_with_decorator(sprite);
     }
-    if (this.decorator)
-        this.decorator.draw();
+
+    check_overlap_with_decorator_mutually(sprite) {
+        if (!sprite instanceof Sprite)
+            throw "Non-Sprite parameter error";
+        var this_res = sprite.check_overlap_with_decorator(this);
+        if (!this.decorator)
+            return this_res;
+        else
+            return this_res || this.decorator.check_overlap_with_decorator_mutually(sprite);
+    }
+
+    move(vect) {
+        super.move(vect);
+        if (this.decorator)
+            this.decorator.move(vect);
+    }
+
+    update() {
+        super.update();
+        if (this.decorator)
+            this.decorator.update();
+    }
+
+    draw() {
+        super.draw();
+        if (this.decorator)
+            this.decorator.draw();
+    }
+
+    actual_draw() {
+        if (this.texture_id) {
+            context.globalAlpha = this.alpha;
+            context.drawImage(Texture.get_Texture_instance(this.texture_id).image, this.coord.x, this.coord.y, this.w, this.h);
+        }
+        if (this.text) {
+            context.font = this.text.font;
+            context.fillText(this.text.text, this.coord.x, Math.round(this.coord.y + (this.h - this.text.size) / 2), this.w);
+            context.beginPath();
+        }
+    }
 }
 
 //---------------------------------------------- World Node
 
-function WorldNode(sprite) {
-    this.parent = null;
-    this.index_at_parent = -1;
-    this.children = null;
-    this.sprite = sprite;
-    this.world = null;
-    return this;
-}
-
-WorldNode.prototype.child_count = function () {
-    if (this.children)
-        return this.children.length;
-    return 0;
-}
-
-WorldNode.prototype.add_child = function (node) {
-    if (!this.children)
-        this.children = new Array();
-    this.children.push(node);
-    var index = this.child_count() - 1;
-    this.children[index].parent = this;
-    this.children[index].index_at_parent = index;
-    this.children[index].world = this.world;
-    this.world.sprite_count++;
-}
-
-WorldNode.prototype.remove_child = function (index) {
-    if (0 <= index && index < this.child_count()) {
-        for (var i = index + 1; i < this.child_count(); i++)
-            this.children[i].index_at_parent = i - 1;
-        var removed = this.children.splice(index, 1)[0];
-        while (removed.child_count() > 0) {
-            var queue = this.world.node_queue();
-            var node = removed.children.splice(removed.child_count() - 1, 1)[0];
-            var sprite = node.sprite;
-            var added = false;
-            for (var i = queue.length - 1; i >= 0; i--) {
-                var sprite_i = queue[i].sprite;
-                if (sprite.overlap_with_decorator_mutually(sprite_i)) {
-                    queue[i].add_child(node);
-                    added = true;
-                    break;
-                }
-            }
-            if (!added)
-                this.world.root.add_child(node);
-        }
-        this.world.sprite_count--;
-        return removed;
+class WorldNode {
+    constructor(sprite) {
+        if (!sprite instanceof Sprite)
+            throw "Non-Sprite parameter error";
+        this.parent = null;
+        this.index_at_parent = -1;
+        this.children = null;
+        this.sprite = sprite;
+        this.world = null;
     }
-    return null;
+
+    child_count() {
+        if (this.children)
+            return this.children.length;
+        return 0;
+    }
+
+    add_child(node) {
+        if (!node instanceof WorldNode)
+            throw "Non-WorldNode parameter error";
+        if (!this.children)
+            this.children = new Array();
+        this.children.push(node);
+        var index = this.child_count() - 1;
+        this.children[index].parent = this;
+        this.children[index].index_at_parent = index;
+        this.children[index].world = this.world;
+        this.world.sprite_count++;
+    }
+
+    remove_child(index) {
+        if (0 <= index && index < this.child_count()) {
+            for (var i = index + 1; i < this.child_count(); i++)
+                this.children[i].index_at_parent = i - 1;
+            var removed = this.children.splice(index, 1)[0];
+            while (removed.child_count() > 0) {
+                var queue = this.world.node_queue();
+                var node = removed.children.splice(removed.child_count() - 1, 1)[0];
+                var sprite = node.sprite;
+                var added = false;
+                for (var i = queue.length - 1; i >= 0; i--) {
+                    var sprite_i = queue[i].sprite;
+                    if (sprite.overlap_with_decorator_mutually(sprite_i)) {
+                        queue[i].add_child(node);
+                        added = true;
+                        break;
+                    }
+                }
+                if (!added)
+                    this.world.root.add_child(node);
+            }
+            this.world.sprite_count--;
+            return removed;
+        }
+        return null;
+    }
 }
 
 //---------------------------------------------- World Tree
 
-function World() {
-    this.root = new WorldNode(null);
-    this.root.world = this;
-    this.sprite_count = 0;
-    this.selected_world_node = null;
-    return this;
-}
-
-World.prototype.node_queue = function () {
-    var queue = new Array();
-    var queue_ = new Array();
-    for (var i = 0; i < this.root.child_count(); i++) {
-        queue.push(this.root.children[i]);
-        queue_.push(this.root.children[i]);
+class WorldTree extends GObject {
+    constructor() {
+        super(0, 0, canvas.width, canvas.height);
+        this.movable = false;
+        this.visble = true;
+        this.root = new WorldNode();
+        this.root.world = this;
+        this.sprite_count = 0;
+        this.selected_world_node = null;
     }
-    var node = null;
-    while (queue_.length > 0) {
-        node = queue_.splice(0, 1)[0];
-        for (var i = 0; i < node.child_count(); i++) {
-            queue.push(node.children[i]);
-            queue_.push(node.children[i]);
+
+    node_queue() {
+        var queue = new Array();
+        var queue_ = new Array();
+        for (var i = 0; i < this.root.child_count(); i++) {
+            queue.push(this.root.children[i]);
+            queue_.push(this.root.children[i]);
         }
-    }
-    return queue;
-}
-
-World.prototype.add_sprite = function (sprite) {
-    var new_node = new WorldNode(sprite);
-    new_node.world = this;
-    if (this.sprite_count == 0) {
-        this.root.add_child(new_node);
-        return null;
-    }
-    else {
-        var queue = this.node_queue();
-        var added = false;
-        for (var i = queue.length - 1; i >= 0; i--) {
-            if (queue[i].sprite.overlap_with_decorator_mutually(sprite)) {
-                var new_node = new WorldNode(sprite);
-                new_node.world = this;
-                queue[i].add_child(new_node);
-                added = true;
-                return (queue[i]);
+        var node = null;
+        while (queue_.length > 0) {
+            node = queue_.splice(0, 1)[0];
+            for (var i = 0; i < node.child_count(); i++) {
+                queue.push(node.children[i]);
+                queue_.push(node.children[i]);
             }
         }
-        if (!added) {
+        return queue;
+    }
+
+    add_sprite(sprite) {
+        var new_node = new WorldNode(sprite);
+        new_node.world = this;
+        if (this.sprite_count == 0) {
             this.root.add_child(new_node);
             return null;
         }
-    }
-}
-
-World.prototype.add_node = function (new_node) {
-    new_node.world = this;
-    if (this.sprite_count == 0) {
-        this.root.add_child(new_node);
-        return null;
-    }
-    else {
-        var queue = this.node_queue();
-        var added = false;
-        for (var i = queue.length - 1; i >= 0; i--) {
-            if (queue[i].sprite.overlap_with_decorator_mutually(new_node.sprite)) {
-                queue[i].add_child(new_node);
-                added = true;
-                return (queue[i]);
+        else {
+            var queue = this.node_queue();
+            var added = false;
+            for (var i = queue.length - 1; i >= 0; i--) {
+                if (queue[i].sprite.overlap_with_decorator_mutually(sprite)) {
+                    var new_node = new WorldNode(sprite);
+                    new_node.world = this;
+                    queue[i].add_child(new_node);
+                    added = true;
+                    return (queue[i]);
+                }
+            }
+            if (!added) {
+                this.root.add_child(new_node);
+                return null;
             }
         }
-        if (!added) {
+    }
+
+    add_node(new_node) {
+        new_node.world = this;
+        if (this.sprite_count == 0) {
             this.root.add_child(new_node);
             return null;
         }
+        else {
+            var queue = this.node_queue();
+            var added = false;
+            for (var i = queue.length - 1; i >= 0; i--) {
+                if (queue[i].sprite.overlap_with_decorator_mutually(new_node.sprite)) {
+                    queue[i].add_child(new_node);
+                    added = true;
+                    return (queue[i]);
+                }
+            }
+            if (!added) {
+                this.root.add_child(new_node);
+                return null;
+            }
+        }
     }
-}
 
-World.prototype.draw = function () {
-    var queue = this.node_queue();
-    while (queue.length > 0) {
-        node = queue.splice(0, 1)[0];
-        node.sprite.draw();
+    update() {
+        super.update();
+        var queue = this.node_queue();
+        while (queue.length > 0) {
+            var node = queue.splice(0, 1)[0];
+            node.sprite.update();
+        }
+        if (this.selected_world_node)
+            this.selected_world_node.sprite.update();
     }
-    if (this.selected_world_node)
-        this.selected_world_node.sprite.draw();
+
+    draw() {
+        var queue = this.node_queue();
+        while (queue.length > 0) {
+            var node = queue.splice(0, 1)[0];
+            node.sprite.draw();
+        }
+        if (this.selected_world_node)
+            this.selected_world_node.sprite.draw();
+    }
 }
 
 //---------------------------------------------- Input Events
 
-var Input_Event_Type = {
+var IEType = {
     SELECT: 0,
     DRAG: 1,
     DROP: 2
 };
 
-function Input_Event(type, coord) {
-    this.type = type;
-    this.coord = coord;
-    return this;
+class Input_Event {
+    constructor(type, coord) {
+        this.type = type;
+        this.coord = coord;
+    }
 }
 
 function mouse_coord_within_canvas(e) {
@@ -383,7 +967,7 @@ function mouse_coord_within_canvas(e) {
 var prev_coord = null;
 function onMouseDown(e) {
     prev_coord = mouse_coord_within_canvas(e);
-    input_event_subscription_manager.publish_input_event(new Input_Event(Input_Event_Type.SELECT, prev_coord));
+    input_event_subscription_manager.publish_input_event(new Input_Event(IEType.SELECT, prev_coord));
 }
 
 function onMouseMove(e) {
@@ -391,159 +975,160 @@ function onMouseMove(e) {
         var buffer = mouse_coord_within_canvas(e);
         var off_coord = buffer.subtract(prev_coord);
         prev_coord = buffer;
-        input_event_subscription_manager.publish_input_event(new Input_Event(Input_Event_Type.DRAG, off_coord));
+        input_event_subscription_manager.publish_input_event(new Input_Event(IEType.DRAG, off_coord));
     }
 }
 
 function onMouseUp(e) {
     var off_coord = mouse_coord_within_canvas(e).subtract(prev_coord);
     prev_coord = null;
-    input_event_subscription_manager.publish_input_event(new Input_Event(Input_Event_Type.DROP, off_coord));
+    input_event_subscription_manager.publish_input_event(new Input_Event(IEType.DROP, off_coord));
 }
 
 //---------------------------------------------- Input Event Subscription Manager
 
-function Input_Event_Subscription_Manager() {
-    this.subscribers = new Array();
-    this.mutexes = { SELECT: -1, DRAG: -1, DROP: -1 };
-    return this;
-}
-
-Input_Event_Subscription_Manager.prototype.get_subscriber_index = function (s) {
-    for (var i = 0; i < this.subscribers.length; i++)
-        if (this.subscribers[i] === s)
-            return i;
-    return -1;
-}
-
-Input_Event_Subscription_Manager.prototype.validate_subscriber_index = function (index) {
-    return (0 <= index && index < this.subscribers.length) ? true : false;
-}
-
-Input_Event_Subscription_Manager.prototype.add_subscriber = function (s) {
-    if (this.get_subscriber_index(s) == -1) {
-        this.subscribers.push(s);
-        return this.subscribers.length - 1;
+class Input_Event_Subscription_Manager {
+    constructor() {
+        this.subscribers = new Array();
+        this.mutexes = { SELECT: -1, DRAG: -1, DROP: -1 };
     }
-    return -1;
-}
 
-Input_Event_Subscription_Manager.prototype.remove_subscriber = function (si) {
-    if (this.validate_subscriber_index(si)) {
-        this.subscribers.splice(si, 1);
-        return true;
+    get_subscriber_index(s) {
+        for (var i = 0; i < this.subscribers.length; i++)
+            if (this.subscribers[i] === s)
+                return i;
+        return -1;
     }
-    return false;
-}
 
-Input_Event_Subscription_Manager.prototype.publish_input_event = function (event) {
-    switch (event.type) {
-        case Input_Event_Type.SELECT: {
-            for (var i = 0; i < this.subscribers.length; i++)
-                if (this.mutexes.SELECT == -1 || this.mutexes.SELECT == i)
-                    this.subscribers[i].handle_input_event(event);
-                else
-                    break;
-            break;
-        }
-        case Input_Event_Type.DRAG: {
-            for (var i = 0; i < this.subscribers.length; i++)
-                if (this.mutexes.DRAG == -1 || this.mutexes.DRAG == i)
-                    this.subscribers[i].handle_input_event(event);
-                else
-                    break;
-            break;
-        }
-        case Input_Event_Type.DROP: {
-            for (var i = 0; i < this.subscribers.length; i++)
-                if (this.mutexes.DROP == -1 || this.mutexes.DROP == i)
-                    this.subscribers[i].handle_input_event(event);
-                else
-                    break;
-            break;
-        }
+    validate_subscriber_index(index) {
+        return (0 <= index && index < this.subscribers.length) ? true : false;
     }
-}
 
-Input_Event_Subscription_Manager.prototype.set_exclusive = function (si, type) {
-    if (si != -1) {
-        switch (type) {
-            case Input_Event_Type.SELECT: {
-                if (this.mutexes.SELECT == -1) {
-                    this.mutexes.SELECT = si;
-                    return true;
-                } else if (this.mutexes.SELECT == si)
-                    return true;
-                break;
-            }
-            case Input_Event_Type.DRAG: {
-                if (this.mutexes.DRAG == -1) {
-                    this.mutexes.DRAG = si;
-                    return true;
-                } else if (this.mutexes.DRAG == si)
-                    return true;
-                break;
-            }
-            case Input_Event_Type.DROP: {
-                if (this.mutexes.DROP == -1) {
-                    this.mutexes.DROP = si;
-                    return true;
-                } else if (this.mutexes.DROP == si)
-                    return true;
-                break;
-            }
+    add_subscriber(s) {
+        if (this.get_subscriber_index(s) == -1) {
+            this.subscribers.push(s);
+            return this.subscribers.length - 1;
         }
+        return -1;
     }
-    return false;
-}
 
-Input_Event_Subscription_Manager.prototype.release_exclusive = function (si, type) {
-    if (si != -1) {
-        switch (type) {
-            case Input_Event_Type.SELECT: {
-                if (this.mutexes.SELECT == si) {
-                    this.mutexes.SELECT = -1;
-                    return true;
-                }
-                break;
-            }
-            case Input_Event_Type.DRAG: {
-                if (this.mutexes.DRAG == si) {
-                    this.mutexes.DRAG = -1;
-                    return true;
-                }
-                break;
-            }
-            case Input_Event_Type.DROP: {
-                if (this.mutexes.DROP == si) {
-                    this.mutexes.DROP = -1;
-                    return true;
-                }
-                break;
-            }
-        }
-    }
-    return false;
-}
-
-Input_Event_Subscription_Manager.prototype.set_full_exclusive = function (si) {
-    if ((this.mutexes.SELECT == -1 || this.mutexes.SELECT == si) && (this.mutexes.DRAG == -1 || this.mutexes.DRAG == si) && (this.mutexes.DROP == -1 || this.mutexes.DROP == si)) {
-        if (this.set_exclusive(si, Input_Event_Type.SELECT) && this.set_exclusive(si, Input_Event_Type.DRAG) && this.set_exclusive(si, Input_Event_Type.DROP))
+    remove_subscriber(si) {
+        if (this.validate_subscriber_index(si)) {
+            this.subscribers.splice(si, 1);
             return true;
-        this.release_exclusive(si, Input_Event_Type.SELECT);
-        this.release_exclusive(si, Input_Event_Type.DRAG);
-        this.release_exclusive(si, Input_Event_Type.DROP);
+        }
+        return false;
     }
-    return false;
-}
 
-Input_Event_Subscription_Manager.prototype.release_full_exclusive = function (si) {
-    if ((this.mutexes.SELECT == si || this.mutexes.SELECT == -1) && (this.mutexes.DRAG == si || this.mutexes.DRAG == -1) && (this.mutexes.DROP == si || this.mutexes.DROP == -1)) {
-        if (this.release_exclusive(si, Input_Event_Type.SELECT) && this.release_exclusive(si, Input_Event_Type.DRAG) && this.release_exclusive(si, Input_Event_Type.DROP))
-            return true;
-        this.set_exclusive(si, Input_Event_Type.SELECT);
-        this.set_exclusive(si, Input_Event_Type.DRAG);
-        this.set_exclusive(si, Input_Event_Type.DROP);
+    publish_input_event(event) {
+        switch (event.type) {
+            case IEType.SELECT: {
+                for (var i = 0; i < this.subscribers.length; i++)
+                    if (this.mutexes.SELECT == -1 || this.mutexes.SELECT == i)
+                        this.subscribers[i].handle_input_event(event);
+                    else
+                        break;
+                break;
+            }
+            case IEType.DRAG: {
+                for (var i = 0; i < this.subscribers.length; i++)
+                    if (this.mutexes.DRAG == -1 || this.mutexes.DRAG == i)
+                        this.subscribers[i].handle_input_event(event);
+                    else
+                        break;
+                break;
+            }
+            case IEType.DROP: {
+                for (var i = 0; i < this.subscribers.length; i++)
+                    if (this.mutexes.DROP == -1 || this.mutexes.DROP == i)
+                        this.subscribers[i].handle_input_event(event);
+                    else
+                        break;
+                break;
+            }
+        }
     }
-    return false;
+
+    set_exclusive(si, type) {
+        if (si != -1) {
+            switch (type) {
+                case IEType.SELECT: {
+                    if (this.mutexes.SELECT == -1) {
+                        this.mutexes.SELECT = si;
+                        return true;
+                    } else if (this.mutexes.SELECT == si)
+                        return true;
+                    break;
+                }
+                case IEType.DRAG: {
+                    if (this.mutexes.DRAG == -1) {
+                        this.mutexes.DRAG = si;
+                        return true;
+                    } else if (this.mutexes.DRAG == si)
+                        return true;
+                    break;
+                }
+                case IEType.DROP: {
+                    if (this.mutexes.DROP == -1) {
+                        this.mutexes.DROP = si;
+                        return true;
+                    } else if (this.mutexes.DROP == si)
+                        return true;
+                    break;
+                }
+            }
+        }
+        return false;
+    }
+
+    release_exclusive(si, type) {
+        if (si != -1) {
+            switch (type) {
+                case IEType.SELECT: {
+                    if (this.mutexes.SELECT == si) {
+                        this.mutexes.SELECT = -1;
+                        return true;
+                    }
+                    break;
+                }
+                case IEType.DRAG: {
+                    if (this.mutexes.DRAG == si) {
+                        this.mutexes.DRAG = -1;
+                        return true;
+                    }
+                    break;
+                }
+                case IEType.DROP: {
+                    if (this.mutexes.DROP == si) {
+                        this.mutexes.DROP = -1;
+                        return true;
+                    }
+                    break;
+                }
+            }
+        }
+        return false;
+    }
+
+    set_full_exclusive(si) {
+        if ((this.mutexes.SELECT == -1 || this.mutexes.SELECT == si) && (this.mutexes.DRAG == -1 || this.mutexes.DRAG == si) && (this.mutexes.DROP == -1 || this.mutexes.DROP == si)) {
+            if (this.set_exclusive(si, IEType.SELECT) && this.set_exclusive(si, IEType.DRAG) && this.set_exclusive(si, IEType.DROP))
+                return true;
+            this.release_exclusive(si, IEType.SELECT);
+            this.release_exclusive(si, IEType.DRAG);
+            this.release_exclusive(si, IEType.DROP);
+        }
+        return false;
+    }
+
+    release_full_exclusive(si) {
+        if ((this.mutexes.SELECT == si || this.mutexes.SELECT == -1) && (this.mutexes.DRAG == si || this.mutexes.DRAG == -1) && (this.mutexes.DROP == si || this.mutexes.DROP == -1)) {
+            if (this.release_exclusive(si, IEType.SELECT) && this.release_exclusive(si, IEType.DRAG) && this.release_exclusive(si, IEType.DROP))
+                return true;
+            this.set_exclusive(si, IEType.SELECT);
+            this.set_exclusive(si, IEType.DRAG);
+            this.set_exclusive(si, IEType.DROP);
+        }
+        return false;
+    }
 }
