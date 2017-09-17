@@ -826,7 +826,7 @@ class Sprite extends CollidableGObject {
         }
         if (this.text) {
             context.font = this.text.font;
-            context.fillText(this.text.text, this.coord.x, this.y + Math.round(this.h - (this.h - this.text.size) / 2), this.w);
+            context.fillText(this.text.text, this.coord.x, this.coord.y + Math.round(this.h - (this.h - this.text.size) / 2), this.w);
             context.beginPath();
         }
     }
