@@ -18,6 +18,7 @@ function init_input_listeners() {
     canvas.addEventListener("mousedown", onMouseDown);
     canvas.addEventListener("mousemove", onMouseMove);
     canvas.addEventListener("mouseup", onMouseUp);
+    document.addEventListener("keydown", onKeyDown);
 }
 
 function init_engine() {
@@ -111,10 +112,9 @@ class Vector {
 
 class Coordinate extends Vector {
     constructor(x, y) {
-        if (Utilities.isInteger(x) && Utilities.isInteger(y))
-            super(x, y);
-        else
+        if (!Utilities.isInteger(x) || !Utilities.isInteger(y))
             throw "Non-integer parameter";
+        super(x, y);
     }
 
     clone() {
@@ -235,7 +235,7 @@ class IDGenerator {
             throw "Invalid Texture ID error";
         this.assigned_ids.splice(id_index, 1);
         this.max++;
-        this.id_pool[max] = id;
+        this.id_pool[this.max] = id;
     }
 }
 
@@ -260,7 +260,6 @@ class GObject {
     move(vect) {
         if (!vect instanceof Vector)
             throw "Non-Vector parameter error";
-
         if (this.movable)
             if (!this.moveVect)
                 this.moveVect = vect;
@@ -345,18 +344,28 @@ class BoundingVolume {
         for (var i = 0; i < this.children.length; i++)
             if (bv === this.children[i])
                 throw "Child BoundingVolume already exists error";
-        if ((bv.coord_offset.x + bv.w) < (this.coord_offset.x + this.w) || (bv.coord_offset.x + bv.w) > (this.coord_offset.x + this.w) || (bv.coord_offset.y + bv.h) < (this.coord_offset.y + this.h) || (bv.coord_offset.y + bv.h) > (this.coord_offset.y + this.h))
+        var ul = this.GObj.coord.add(bv.coord_offset);
+        var lr = ul.add(new Vector(bv.w, bv.h));
+        if (!this.check_coordinate_without_children(ul) || !this.check_coordinate_without_children(lr))
             throw "Child BoundingVolume out of parent BoundingVolume error";
         bv.GObj = this.GObj;
         bv.parent = this;
         this.children.push(bv);
     }
 
-    check_coordinate(coord) {
+    check_coordinate_without_children(coord) {
         if (!coord instanceof Coordinate)
             throw "Non-Coordinate parameter error";
         var actual_coordinate = this.get_actual_coordinate();
         if (coord.x < actual_coordinate.x || (actual_coordinate.x + this.w) < coord.x || coord.y < actual_coordinate.y || (actual_coordinate.y + this.h) < coord.y)
+            return false;
+        return true;
+    }
+
+    check_coordinate(coord) {
+        if (!coord instanceof Coordinate)
+            throw "Non-Coordinate parameter error";
+        if (!this.check_coordinate_without_children(coord))
             return false;
         if (this.children)
             for (var i = 0; i < this.children.length; i++)
@@ -420,6 +429,22 @@ class BoundingVolume {
         return true;
     }
 
+    check_overlap_without_children_unstrict(bv) {
+        if (!bv instanceof BoundingVolume)
+            throw "Non-BoundingVolume parameter error";
+        var this_ul = this.get_actual_coordinate();
+        var this_lr = this_ul.add(new Coordinate(this.w, this.h));
+        var bv_ul = bv.get_actual_coordinate();
+        var bv_lr = bv_ul.add(new Coordinate(bv.w, bv.h));
+        if ((this_ul.x > bv_lr.x || bv_ul.x > this_lr.x) || (this_ul.y > bv_lr.y || bv_ul.y > this_lr.y))
+            return false;
+        if ((this_ul.x == bv_ul.x && this_ul.y == bv_ul.y) || (this_lr.x == bv_lr.x && this_lr.y == bv_lr.y))
+            return true;
+        if ((this_lr.x == bv_ul.x || this_ul.x == bv_lr.x || this_lr.y == bv_ul.y || this_ul.y == bv_lr.y))
+            return false;
+        return true;
+    }
+
     get_children(depth) {
         switch (depth) {
             case 0: {
@@ -429,7 +454,7 @@ class BoundingVolume {
                 break;
             }
             case 1: {
-                if (!this.children)
+                if (this.children)
                     return this.children;
                 else
                     return null;
@@ -443,7 +468,7 @@ class BoundingVolume {
                 var res = new Array();
                 for (var i = 0; i < this.children.length; i++) {
                     var c = this.children[i].get_children(depth - 1);
-                    if (!c)
+                    if (c)
                         for (var j = 0; j < c.length; j++)
                             res.push(c[j]);
                 }
@@ -463,8 +488,8 @@ class BoundingVolume {
         do {
             var this_c, bv_c;
             if (!this_max) {
-                this_c = this.get_children(this_depth)
-                if (!this_c) {
+                this_c = this.get_children(this_depth);
+                if (this_c == null) {
                     this_depth--;
                     this_max = true;
                     this_c = this.get_children(this_depth);
@@ -472,11 +497,11 @@ class BoundingVolume {
                     this_depth++;
             }
             if (!bv_max) {
-                bv_c = bv.get_children(bv_depth)
-                if (!bv_c) {
+                bv_c = bv.get_children(bv_depth);
+                if (bv_c == null) {
                     bv_depth--;
                     bv_max = true;
-                    bv_c = this.get_children(bv_depth);
+                    bv_c = bv.get_children(bv_depth);
                 } else
                     bv_depth++;
             }
@@ -512,6 +537,8 @@ class Collision {
     }
 }
 
+//---------------------------------------------- Collidable Game Object
+
 class CollidableGObject extends GObject {
     constructor(x, y, w, h, bv) {
         if (!bv instanceof BoundingVolume)
@@ -520,23 +547,31 @@ class CollidableGObject extends GObject {
         this.CollidableGObject_id = CollidableGObject.get_CollidableGObject_id_generator().get_id();
         CollidableGObject.get_CollidableGObject_instance_array()[this.CollidableGObject_id] = this;
         this.root_bounding_volume = bv;
-        bv.GObj = this;
-        bv.parent = null;
+        this.root_bounding_volume.GObj = this;
+        this.root_bounding_volume.parent = null;
         this.CP = CPType.HARD;
         this.collidable = true;
     }
 
+    move_prediction() {
+        if (this.moveVect)
+            return new CollidableGObject(this.coord.x + this.moveVect.x, this.coord.y + this.moveVect.y, this.w, this.h, this.root_bounding_volume);
+        return new CollidableGObject(this.coord.x, this.coord.y, this.w, this.h, this.root_bounding_volume);
+    }
+
     collides(CGO) {
-        if (this.CP == CPType.HARD) {
-            if (!CGO instanceof CollidableGObject)
-                throw "Non-CollidableGObject parameter error";
+        if (!CGO instanceof CollidableGObject)
+            throw "Non-CollidableGObject parameter error";
+        if (this.CP == CPType.HARD && CGO.CP == CPType.HARD) {
             var range = this.root_bounding_volume.Minkowski_add(CGO.root_bounding_volume);
-            var ray = new Ray(CGO.root_bounding_volume.get_center_coordinate(), CGO.moveVect);
-            return range.ray_intersection();
-        } else if (this.CP == CPType.PASSIVE) {
-            var res = this.root_bounding_volume.check_overlap_with_children(CGO.root_bounding_volume);
-            return res;
-        }
+            var ray;
+            if (!CGO.moveVect)
+                ray = new Ray(CGO.root_bounding_volume.get_center_coordinate(), CGO.moveVect);
+            else
+                ray = new Ray(CGO.root_bounding_volume.get_center_coordinate(), new Vector(0, 0));
+            return range.ray_intersection(ray);
+        } else if (this.CP == CPType.PASSIVE || CGO.CP == CPType.PASSIVE)
+            return this.root_bounding_volume.check_overlap_with_children(CGO.root_bounding_volume);
     }
 
     resolve(collision) {
@@ -549,11 +584,12 @@ class CollidableGObject extends GObject {
         var hard_instances = new Array();
         var hard_nexts = new Array();
         var hard_collision_ray_collections = new Array();
-        for (var i = 0; i < ids.length; i++) {
+        var actual_length = ids.length;
+        for (var i = 0; i < actual_length; i++) {
             var instance_i = this.get_CollidableGObject_instance(ids[i]);
             if (instance_i.collidable && instance_i.CP == CPType.HARD) {
                 hard_instances.push(instance_i);
-                hard_nexts.push(new CollidableGObject(instance_i.coord.x + instance_i.moveVect.x, instance_i.coord.y + instance_i.moveVect.y, instance_i.w, instance_i.h));
+                hard_nexts.push(instance_i.move_prediction());
                 hard_collision_ray_collections.push(new Array());
             }
         }
@@ -566,6 +602,7 @@ class CollidableGObject extends GObject {
                 if (collision_i_into_j)
                     collision_collections[i].push(collision_i_into_j);
             }
+            CollidableGObject.rm_CollidableGObject_instance_ref(hard_nexts[i].CollidableGObject_id);
         }
         for (var i = 0; i < hard_instances.length; i++) {
             var collisions = hard_collision_ray_collections[i];
@@ -588,25 +625,29 @@ class CollidableGObject extends GObject {
     }
 
     static CGO_update_passive_collision() {
-        var ids = get_CollidableGObject_instance_id_array();
+        var ids = this.get_CollidableGObject_instance_id_array();
         var passive_instances = new Array();
-        for (var i = 0; i < ids.length; i++) {
+        var passive_nexts = new Array();
+        var actual_length = ids.length;
+        for (var i = 0; i < actual_length; i++) {
             var instance_i = this.get_CollidableGObject_instance(ids[i]);
             if (instance_i.collidable && instance_i.CP == CPType.PASSIVE) {
-                passsive_instances.push(instance_i);
+                passive_instances.push(instance_i);
+                passive_nexts.push(instance_i.move_prediction());
             }
         }
-        for (var i = 0; i < passive_instances.length; i++) {
-            for (var j = i + 1; j < passive_instances.length; j++) {
-                if (passive_instances[i].collides(passive_instances[j]))
+        for (var i = 0; i < passive_nexts.length; i++) {
+            for (var j = i + 1; j < passive_nexts.length; j++) {
+                if (passive_nexts[i].collides(passive_nexts[j]))
                     passive_instances[j].resolve(new Collision(null, passive_instances[i], CPType.PASSIVE));
             }
+            CollidableGObject.rm_CollidableGObject_instance_ref(passive_nexts[i].CollidableGObject_id);
         }
     }
 
     static CGO_update() {
-        CGO_update_hard_collision();
-        CGO_update_passive_collision();
+        this.CGO_update_hard_collision();
+        this.CGO_update_passive_collision();
     }
 
     static get_CollidableGObject_instance(CollidableGObject_id) {
@@ -627,7 +668,7 @@ class CollidableGObject extends GObject {
     }
 
     static get_CollidableGObject_instance_id_array() {
-        return this.get_CollidableGObject_id_generator().assigned_ids();
+        return this.get_CollidableGObject_id_generator().assigned_ids;
     }
 
     static get_CollidableGObject_id_generator() {
@@ -707,6 +748,8 @@ class Sprite extends CollidableGObject {
     }
 
     attach_text(text) {
+        if (!text instanceof Text)
+            throw "Non-Text parameter error";
         this.text = text;
     }
 
@@ -752,6 +795,12 @@ class Sprite extends CollidableGObject {
             return this_res || this.decorator.check_overlap_with_decorator_mutually(sprite);
     }
 
+    move_prediction() {
+        if (this.moveVect)
+            return new Sprite(this.coord.x + this.moveVect.x, this.coord.y + this.moveVect.y, this.w, this.h);
+        return new Sprite(this.coord.x, this.coord.y, this.w, this.h);
+    }
+
     move(vect) {
         super.move(vect);
         if (this.decorator)
@@ -777,9 +826,130 @@ class Sprite extends CollidableGObject {
         }
         if (this.text) {
             context.font = this.text.font;
-            context.fillText(this.text.text, this.coord.x, Math.round(this.coord.y + (this.h - this.text.size) / 2), this.w);
+            context.fillText(this.text.text, this.coord.x, Math.round(this.h - (this.h - this.text.size) / 2), this.w);
             context.beginPath();
         }
+    }
+}
+
+//---------------------------------------------- Grid
+
+class Grid extends CollidableGObject {
+    constructor(row, col) {
+        var x = 0, y = 0, w = canvas.width, h = canvas.height;
+        if (w % col != 0 && h % row != 0)
+            throw "Canvas width or height is undivisible by row or col error";
+        var cell_w = Math.round(w / col), cell_h = Math.round(h / row);
+        super(x, y, w, h, new BoundingVolume(-2 * cell_w, -2 * cell_h, w + 4 * cell_w, h + 4 * cell_h));
+        this.row = row;
+        this.col = col;
+        this.cell_w = cell_w;
+        this.cell_h = cell_h;
+        this.CP = CPType.PASSIVE;
+        this.collidable = true;
+        this.movable = false;
+        this.visble = false;
+        this.root_bounding_volume.attach_child_BoundingVolume(new BoundingVolume(0, -2 * cell_h, w, 2 * cell_h));
+        this.root_bounding_volume.attach_child_BoundingVolume(new BoundingVolume(0, h, w, 2 * cell_h));
+        this.root_bounding_volume.attach_child_BoundingVolume(new BoundingVolume(-2 * cell_w, 0, 2 * cell_w, h));
+        this.root_bounding_volume.attach_child_BoundingVolume(new BoundingVolume(w, 0, 2 * cell_w, h));
+        this.grid_sprites = new Array();
+    }
+
+    move_prediction() {
+        return new Grid(this.row, this.col);
+    }
+
+    validate_index(row, col) {
+        if (!Utilities.isInteger(row) || !Utilities.isInteger(col))
+            throw "Non-integer parameter error";
+        if (0 > row || row >= this.row || 0 > col || col >= this.col)
+            return false;
+        return true;
+    }
+
+    index_to_coord(row, col) {
+        if (!this.validate_index(row, col))
+            throw "Invalid index parameter error";
+        return new Coordinate(col * this.cell_w, row * this.cell_h);
+    }
+
+    coord_to_index(coord) {
+        var c = (coord.x - coord.x % this.cell_w) / this.cell_w;
+        var r = (coord.y - coord.y % this.cell_h) / this.cell_h;
+        if (!this.validate_index(r, c))
+            throw "Invalid index parameter error";
+        return { row: r, col: c };
+    }
+}
+
+//---------------------------------------------- Grid Sprite
+
+class GridSprite extends Sprite {
+    constructor(row, col, grid) {
+        if (!grid instanceof Grid)
+            throw "Non-Grid parameter error";
+        var coord = grid.index_to_coord(row, col);
+        super(coord.x, coord.y, grid.cell_w, grid.cell_h, new BoundingVolume(0, 0, grid.cell_w, grid.cell_h));
+        this.grid = grid;
+        this.row = row;
+        this.col = col;
+        this.delta_row = 0;
+        this.delta_col = 0;
+        this.CP = CPType.PASSIVE;
+        this.alpha = 1.0;
+        this.texture_id = null;
+        this.text = null;
+        this.decorator = null;
+    }
+
+    move_prediction() {
+        if (this.moveVect) {
+            var index = this.grid.coord_to_index(new Coordinate(this.coord.x + this.moveVect.x, this.coord.y + this.moveVect.y));
+            return new GridSprite(index.row, index.col, this.grid);
+        }
+        return new GridSprite(this.row, this.col, this.grid);
+    }
+
+    move(direction) {
+        if (direction instanceof Vector) {
+            var next_coord = this.grid.index_to_coord(this.row += this.delta_row, this.col += this.delta_col).add(direction);
+            var next_index = this.grid.coord_to_index(next_coord);
+            this.delta_row = next_index.row - this.row;
+            this.delta_col = next_index.col - this.col;
+        } else if (typeof (direction) == "object") {
+            if (this.grid.validate_index(this.row + this.delta_row + direction.row, this.col + this.delta_col + direction.col)) {
+                this.delta_row += direction.row;
+                this.delta_col += direction.col;
+            } else
+                throw "Moving out of bounds error";
+        } else
+            throw "Unknown parameter error";
+        var v = new Vector(this.delta_col * this.grid.cell_w, this.delta_row * this.grid.cell_h)
+        this.moveVect = v;
+    }
+
+    update() {
+        super.update();
+        this.row += this.delta_row;
+        this.col += this.delta_col;
+        this.delta_row = 0;
+        this.delta_col = 0;
+    }
+
+    move_to(destination) {
+        if (destination instanceof Coordinate) {
+            var next_index = this.grid.coord_to_index(destination);
+            this.delta_row = next_index.row - this.row;
+            this.delta_col = next_index.col - this.col;
+        } else if (typeof (destination) == "object") {
+            if (this.grid.validate_index(destination.row, destination.col)) {
+                this.delta_row = destination.row - this.row;
+                this.delta_col = destination.col - this.col;
+            }
+        } else
+            throw "Unknown parameter error";
+        this.moveVect = new Vector(this.delta_col * this.grid.cell_w, this.delta_row * this.grid.cell_h);
     }
 }
 
@@ -947,10 +1117,15 @@ class WorldTree extends GObject {
 
 //---------------------------------------------- Input Events
 
-var IEType = {
+const IEType_total = 7;
+const IEType = {
     SELECT: 0,
     DRAG: 1,
-    DROP: 2
+    DROP: 2,
+    UP: 3,
+    DOWN: 4,
+    LEFT: 5,
+    RIGHT: 6
 };
 
 class Input_Event {
@@ -985,12 +1160,31 @@ function onMouseUp(e) {
     input_event_subscription_manager.publish_input_event(new Input_Event(IEType.DROP, off_coord));
 }
 
+function onKeyDown(e) {
+    switch (e.keyCode) {
+        case 38:
+            input_event_subscription_manager.publish_input_event(new Input_Event(IEType.UP, null));
+            break;
+        case 40:
+            input_event_subscription_manager.publish_input_event(new Input_Event(IEType.DOWN, null));
+            break;
+        case 37:
+            input_event_subscription_manager.publish_input_event(new Input_Event(IEType.LEFT, null));
+            break;
+        case 39:
+            input_event_subscription_manager.publish_input_event(new Input_Event(IEType.RIGHT, null));
+            break;
+    }
+}
+
 //---------------------------------------------- Input Event Subscription Manager
 
 class Input_Event_Subscription_Manager {
     constructor() {
         this.subscribers = new Array();
-        this.mutexes = { SELECT: -1, DRAG: -1, DROP: -1 };
+        this.mutexes = new Array();
+        for (var i = 0; i < IEType_total; i++)
+            this.mutexes.push(-1);
     }
 
     get_subscriber_index(s) {
@@ -1021,114 +1215,46 @@ class Input_Event_Subscription_Manager {
     }
 
     publish_input_event(event) {
-        switch (event.type) {
-            case IEType.SELECT: {
-                for (var i = 0; i < this.subscribers.length; i++)
-                    if (this.mutexes.SELECT == -1 || this.mutexes.SELECT == i)
-                        this.subscribers[i].handle_input_event(event);
-                    else
-                        break;
+        for (var i = 0; i < this.subscribers.length; i++)
+            if (this.mutexes[event.type] == -1 || this.mutexes[event.type] == i)
+                this.subscribers[i].handle_input_event(event);
+            else
                 break;
-            }
-            case IEType.DRAG: {
-                for (var i = 0; i < this.subscribers.length; i++)
-                    if (this.mutexes.DRAG == -1 || this.mutexes.DRAG == i)
-                        this.subscribers[i].handle_input_event(event);
-                    else
-                        break;
-                break;
-            }
-            case IEType.DROP: {
-                for (var i = 0; i < this.subscribers.length; i++)
-                    if (this.mutexes.DROP == -1 || this.mutexes.DROP == i)
-                        this.subscribers[i].handle_input_event(event);
-                    else
-                        break;
-                break;
-            }
-        }
     }
 
     set_exclusive(si, type) {
-        if (si != -1) {
-            switch (type) {
-                case IEType.SELECT: {
-                    if (this.mutexes.SELECT == -1) {
-                        this.mutexes.SELECT = si;
-                        return true;
-                    } else if (this.mutexes.SELECT == si)
-                        return true;
-                    break;
-                }
-                case IEType.DRAG: {
-                    if (this.mutexes.DRAG == -1) {
-                        this.mutexes.DRAG = si;
-                        return true;
-                    } else if (this.mutexes.DRAG == si)
-                        return true;
-                    break;
-                }
-                case IEType.DROP: {
-                    if (this.mutexes.DROP == -1) {
-                        this.mutexes.DROP = si;
-                        return true;
-                    } else if (this.mutexes.DROP == si)
-                        return true;
-                    break;
-                }
-            }
-        }
-        return false;
+        if (si == -1)
+            throw "Invalid subscriber index";
+        if (this.mutexes[type] == -1)
+            this.mutexes[type] = si;
+        else if (this.mutexes[type] != si)
+            throw "Mutex already locked error";
     }
 
     release_exclusive(si, type) {
-        if (si != -1) {
-            switch (type) {
-                case IEType.SELECT: {
-                    if (this.mutexes.SELECT == si) {
-                        this.mutexes.SELECT = -1;
-                        return true;
-                    }
-                    break;
-                }
-                case IEType.DRAG: {
-                    if (this.mutexes.DRAG == si) {
-                        this.mutexes.DRAG = -1;
-                        return true;
-                    }
-                    break;
-                }
-                case IEType.DROP: {
-                    if (this.mutexes.DROP == si) {
-                        this.mutexes.DROP = -1;
-                        return true;
-                    }
-                    break;
-                }
-            }
-        }
-        return false;
+        if (si == -1)
+            throw "Invalid subscriber index";
+        if (this.mutexes[type] == si)
+            this.mutexes[type] = -1;
+        else if (this.mutexes[type] != si)
+            throw "Mutex not locked or not in subscriber's possession error";
     }
 
     set_full_exclusive(si) {
-        if ((this.mutexes.SELECT == -1 || this.mutexes.SELECT == si) && (this.mutexes.DRAG == -1 || this.mutexes.DRAG == si) && (this.mutexes.DROP == -1 || this.mutexes.DROP == si)) {
-            if (this.set_exclusive(si, IEType.SELECT) && this.set_exclusive(si, IEType.DRAG) && this.set_exclusive(si, IEType.DROP))
-                return true;
-            this.release_exclusive(si, IEType.SELECT);
-            this.release_exclusive(si, IEType.DRAG);
-            this.release_exclusive(si, IEType.DROP);
+        for (var i = 0; i < IEType_total; i++) {
+            if (!(this.mutexes[i] == -1 || this.mutexes[i] == si))
+                throw "Mutex(es) already locked error";
         }
-        return false;
+        for (var i = 0; i < IEType_total; i++)
+            this.set_exclusive(si, i);
     }
 
     release_full_exclusive(si) {
-        if ((this.mutexes.SELECT == si || this.mutexes.SELECT == -1) && (this.mutexes.DRAG == si || this.mutexes.DRAG == -1) && (this.mutexes.DROP == si || this.mutexes.DROP == -1)) {
-            if (this.release_exclusive(si, IEType.SELECT) && this.release_exclusive(si, IEType.DRAG) && this.release_exclusive(si, IEType.DROP))
-                return true;
-            this.set_exclusive(si, IEType.SELECT);
-            this.set_exclusive(si, IEType.DRAG);
-            this.set_exclusive(si, IEType.DROP);
+        for (var i = 0; i < IEType_total; i++) {
+            if (!(this.mutexes[i] == si || this.mutexes[i] == -1))
+                throw "Mutex not locked or not in subscriber's possession error";
         }
-        return false;
+        for (var i = 0; i < IEType_total; i++)
+            this.release_exclusive(si, i);
     }
 }
