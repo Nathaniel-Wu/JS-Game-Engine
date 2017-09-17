@@ -188,7 +188,8 @@ class Playground extends WorldTree {
     handle_input_event(event) {
         switch (event.type) {
             case IEType.SELECT: {
-                if (this.input_event_subscription_manager.set_exclusive(this.si, IEType.SELECT)) {
+                try {
+                    this.input_event_subscription_manager.set_exclusive(this.si, IEType.SELECT);
                     this.selected_world_node = null;
                     var queue = this.node_queue();
                     for (var i = queue.length - 1; i >= 0; i--) {
@@ -201,27 +202,37 @@ class Playground extends WorldTree {
                         this.selected_world_node.parent.remove_child(this.selected_world_node.index_at_parent);
                         this.selected_world_node.sprite.alpha = 0.5;
                         this.latest_drag = new Coordinate(0, 0);
-                        if (!this.input_event_subscription_manager.set_full_exclusive(this.si))
-                            throw "Subscription Mutex Conditions Error";
+                        try {
+                            this.input_event_subscription_manager.set_full_exclusive(this.si);
+                        } catch (e) {
+                            console.log(e);
+                        }
                     } else
-                        if (!this.input_event_subscription_manager.release_exclusive(this.si, IEType.SELECT))
-                            throw "Subscription Mutex Conditions Error";
-                } else
-                    throw "Subscription Mutex Conditions Error";
+                        try {
+                            this.input_event_subscription_manager.release_exclusive(this.si, IEType.SELECT);
+                        } catch (e) {
+                            console.log(e);
+                        }
+                } catch (e) {
+                    console.log(e);
+                }
                 break;
             }
             case IEType.DRAG: {
                 if (this.selected_world_node) {
-                    if (this.input_event_subscription_manager.set_exclusive(this.si, IEType.DRAG))
+                    try {
+                        this.input_event_subscription_manager.set_exclusive(this.si, IEType.DRAG);
                         this.latest_drag = this.latest_drag.add(event.coord);
-                    else
-                        throw "Subscription Mutex Conditions Error";
+                    } catch (e) {
+                        console.log(e);
+                    }
                 }
                 break;
             }
             case IEType.DROP: {
                 if (this.selected_world_node) {
-                    if (this.input_event_subscription_manager.set_exclusive(this.si, IEType.DROP)) {
+                    try {
+                        this.input_event_subscription_manager.set_exclusive(this.si, IEType.DROP);
                         this.latest_drag = this.latest_drag.add(event.coord);
                         this.selected_world_node.sprite.move(this.latest_drag);
                         this.latest_drag = null;
@@ -240,10 +251,14 @@ class Playground extends WorldTree {
                             }
                         }
                         this.selected_world_node = null;
-                        if (!this.input_event_subscription_manager.release_full_exclusive(this.si))
-                            throw "Subscription Mutex Conditions Error";
-                    } else
-                        throw "Subscription Mutex Conditions Error";
+                        try {
+                            this.input_event_subscription_manager.release_full_exclusive(this.si);
+                        } catch (e) {
+                            console.log(e);
+                        }
+                    } catch (e) {
+                        console.log(e);
+                    }
                 }
                 this.selected_world_node = null;
                 break;
@@ -270,7 +285,8 @@ class Menu extends WorldTree {
     handle_input_event(event) {
         switch (event.type) {
             case IEType.SELECT: {
-                if (this.input_event_subscription_manager.set_exclusive(this.si, IEType.SELECT)) {
+                try {
+                    this.input_event_subscription_manager.set_exclusive(this.si, IEType.SELECT)
                     this.selected_world_node = null;
                     for (var i = this.sprite_count - 1; i >= 0; i--) {
                         if (this.root.children[i].sprite.covers_coord_with_decorator(event.coord)) {
@@ -286,15 +302,21 @@ class Menu extends WorldTree {
                         var new_node = new WorldNode(new_sprite);
                         new_node.world = this.playground;
                         this.playground.selected_world_node = new_node;
-                        if (!this.input_event_subscription_manager.release_exclusive(this.si, IEType.SELECT))
-                            throw "Subscription Mutex Conditions Error";
-                        if (!this.input_event_subscription_manager.set_full_exclusive(this.playground.si))
-                            throw "Subscription Mutex Conditions Error";
+                        try {
+                            this.input_event_subscription_manager.release_exclusive(this.si, IEType.SELECT);
+                            this.input_event_subscription_manager.set_full_exclusive(this.playground.si);
+                        } catch (e) {
+                            console.log(e);
+                        }
                     } else
-                        if (!this.input_event_subscription_manager.release_exclusive(this.si, IEType.SELECT))
-                            throw "Subscription Mutex Conditions Error";
-                } else
-                    throw "Subscription Mutex Conditions Error";
+                        try {
+                            this.input_event_subscription_manager.release_exclusive(this.si, IEType.SELECT)
+                        } catch (e) {
+                            console.log(e);
+                        }
+                } catch (e) {
+                    console.log(e);
+                }
                 break;
             }
         }
