@@ -537,6 +537,156 @@ class Collision {
     }
 }
 
+//---------------------------------------------- CollisionQuadtree
+
+class QuadtreeNode {
+    constructor() {
+        this.values = new Array();
+        this.parent = null;
+        this.children = { q1: null, q2: null, q3: null, q4: null };
+    }
+
+    attach_value(v) {
+        for (var i = 0; i < this.values.length; i++)
+            if (this.values[i] === v)
+                throw "Duplicate value error";
+            else
+                values.push(v);
+    }
+
+    attach_parent(node) {
+        if (!node instanceof QuadtreeNode)
+            throw "Non-QuadtreeNode parameter error";
+        this.parent = node;
+    }
+
+    attach_child(node, quadrant) {
+        if (!node instanceof QuadtreeNode)
+            throw "Non-QuadtreeNode parameter error";
+        switch (quadrant) {
+            case 1:
+                this.children.q1 = node;
+                break;
+            case 2:
+                this.children.q2 = node;
+                break;
+            case 3:
+                this.children.q3 = node;
+                break;
+            case 4:
+                this.children.q4 = node;
+                break;
+            default:
+                throw "Invalid quadrant error";
+        }
+    }
+
+    get_child(quadrant) {
+        switch (quadrant) {
+            case 1:
+                return this.children.q1;
+                break;
+            case 2:
+                return this.children.q2;
+                break;
+            case 3:
+                return this.children.q3;
+                break;
+            case 4:
+                return this.children.q4;
+                break;
+            default:
+                throw "Invalid quadrant error";
+        }
+    }
+
+    get_valid_quadrants() {
+        var quadrants = new Array();
+        for (var i = 0; i < 4; i++) {
+            var child_i = this.get_child(i);
+            if (child_i && child_i.length > 0)
+                quadrants.push(i);
+        }
+        if (quadrants.length > 0)
+            return quadrants;
+        return null;
+    }
+}
+
+class CollisionQuadtreeNode extends QuadtreeNode {
+    constructor(x, y, w, h) {
+        super();
+        this.coord = new Coordinate(x, y);
+        this.w = w; this.h = h;
+    }
+
+    check_coord(coord) {
+        if (((this.coord.x > coord.x) || (coord.x >= this.coord.x + this.w)) || ((this.coord.y > coord.y) || (coord.y >= this.coord.y + this.h)))
+            return false;
+        return true;
+    }
+
+    split() {
+        var w = Math.round(w / 2); var h = Math.round(h / 2);
+        this.children.q1 = new CollisionQuadtreeNode(this.coord.x, this.coord.y, w, h);
+        this.children.q2 = new CollisionQuadtreeNode(this.coord.x + w, this.coord.y, this.w - w, h);
+        this.children.q3 = new CollisionQuadtreeNode(this.coord.x, this.coord.y + h, w, this.h - h);
+        this.children.q4 = new CollisionQuadtreeNode(this.coord.x + w, this.coord.y + h, this.w - w, this.h - h);
+        for (var i = 1; i <= 4; i++) {
+            var cur_child = this.get_child(i);
+            for (var i = this.values.length - 1; i >= 0; i--)
+                if (cur_child.check_coord(this.values[i].coord))
+                    cur_child.attach_value(this.values.splice(i, 1)[0]);
+        }
+    }
+}
+
+const max_node_capacity = 5;
+class CollisionQuadtree {
+    constructor(w, h) {
+        this.root = null;
+        this.child_count = 0;
+        this.w = w; this.h = h;
+    }
+
+    get_quadtree_node(coord) {
+        if (!coord instanceof Coordinate)
+            throw "Non-Coordinate parameter error";
+        var series = new Array();
+        var cur_node = this.root;
+        var cur_children;
+        do {
+            cur_children = cur_node.get_valid_quadrants();
+            if (!cur_children)
+                return cur_node;
+            else {
+                var quadrant = null;
+                for (var i = 0; i < cur_children.length; i++) {
+                    var child_i = cur_node.get_child(cur_children[i]);
+                    if (child_i.check_coord(coord)) {
+                        cur_node = child_i;
+                        continue;
+                    }
+                }
+            }
+        } while (true);
+    }
+
+    add_CGO(CGO) {
+        if (!CGO instanceof CollidableGObject)
+            throw "Non-CollidableGObject parameter error";
+        if (!this.root) {
+            this.root = new CollisionQuadtreeNode();
+            this.root.attach_value(CGO);
+        } else {
+            var target_node = this.get_quadtree_node(CGO.coord);
+            target_node.attach_value(CGO);
+            if (target_node.values.length > max_node_capacity)
+                target_node.split();
+        }
+    }
+}
+
 //---------------------------------------------- Collidable Game Object
 
 class CollidableGObject extends GObject {
