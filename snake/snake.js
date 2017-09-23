@@ -115,8 +115,8 @@ class FoodSprite extends PlaySprite {
             if (repeat)
                 continue;
             for (var i = 0; i < foods.length; i++)
-                if (!((row == foods[i].row) && (col == foods[i].col))) {
-                    repeat = false;
+                if ((row == foods[i].row) && (col == foods[i].col)) {
+                    repeat = true;
                     break;
                 }
             if (!repeat)
@@ -254,21 +254,19 @@ class SnakeSprite extends PlaySprite {
     }
 
     resolve(collision) {
-        if (collision.into instanceof SnakeSprite) {
+        if (collision.into instanceof SnakeSprite)
             if (this.row + this.delta_row == collision.into.row + collision.into.delta_row && this.col + this.delta_col == collision.into.col + collision.into.delta_col)
                 this.snake.cancel_moving();
-        }
-        if (collision.into instanceof PlayGrid) {
+        if (collision.into instanceof PlayGrid)
             if (this.snake.really_hiting_wall())
                 this.snake.cancel_moving();
-        }
-        if (collision.into instanceof FoodSprite) {
-            if (this.is_snake_head() && !this.snake.already_eat) {
+        if (collision.into instanceof FoodSprite)
+            if (this.is_snake_head())
                 if (this.row + this.delta_row == collision.into.row && this.col + this.delta_col == collision.into.col)
-                    collision.into.eat_by(this.snake);
-                this.already_eat = true;
-            }
-        }
+                    if (!this.snake.already_eat) {
+                        collision.into.eat_by(this.snake);
+                        this.snake.already_eat = true;
+                    }
     }
 
     move(dir) {
@@ -497,7 +495,7 @@ class Snake {
                     if (Utilities.string_compare(e, "Moving out of bounds error"))
                         this.cancel_moving();
                 }
-                CollidableGObject.CGO_update_passive_collision();
+                CollidableGObject.CGO_update();
                 for (var i = 0; i < this.snake_sprites.length; i++)
                     this.snake_sprites[i].update();
                 for (var i = 0; i < foods.length; i++)
