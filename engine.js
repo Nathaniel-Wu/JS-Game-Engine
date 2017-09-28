@@ -1088,6 +1088,69 @@ class Sprite extends CollidableGObject {
     }
 }
 
+//---------------------------------------------- Sprite Sheet
+
+class SpriteSheet extends Sprite {
+    constructor(x, y, w, h) {
+        super(x, y, w, h);
+        this.rows = 0;
+        this.cols = 0;
+        this.row_h = 0;
+        this.col_w = 0;
+        this.row = -1;
+        this.col = -1;
+        this.update_gap = 1;
+        this.last_update_gap = 0;
+    }
+
+    attach_texture_sheet(texture_id, width, height, rows, cols, update_gap) {
+        if (height % rows != 0 || width % cols != 0)
+            throw "Target texture not a sheet error";
+        super.attach_texture(texture_id);
+        this.rows = rows;
+        this.cols = cols;
+        this.row_h = height / rows;
+        this.col_w = width / cols;
+        this.row = 0;
+        this.col = 0;
+        this.update_gap = update_gap;
+        this.last_update_gap = 0;
+    }
+
+    change_texture_sheet_row(row) {
+        if (this.rows <= row)
+            throw "Sheet index out of bounds error";
+        this.row = row;
+        this.col = 0;
+        this.last_update_gap = 0;
+    }
+
+    update() {
+        super.update();
+        this.last_update_gap++;
+        if (this.last_update_gap % this.update_frequency == 0) {
+            this.col = (this.col + 1) % this.cols;
+            this.last_update_gap = 0;
+        }
+    }
+
+    actual_draw() {
+        if (this.rows == 0 || this.cols == 0 || this.row == -1 || this.col == -1) {
+            super.actual_draw();
+        } else {
+            if (this.texture_id) {
+                context.globalAlpha = this.alpha;
+                context.drawImage(Texture.get_Texture_instance(this.texture_id).image, this.col * this.col_w, this.row * this.row_h, this.col_w, this.row_h, this.coord.x, this.coord.y, this.w, this.h);
+            }
+            if (this.text) {
+                context.font = this.text.font;
+                context.fillText(this.text.text, this.coord.x, this.coord.y + Math.round(this.h - (this.h - this.text.size) / 2), this.w);
+                context.beginPath();
+            }
+        }
+    }
+}
+
 //---------------------------------------------- Grid
 
 class Grid extends CollidableGObject {
