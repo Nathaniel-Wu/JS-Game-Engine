@@ -127,7 +127,7 @@ class Menu_Item extends Element_Sprite {
         super(playground_width, menu.sprite_count * (element_sprite_size + margin_between_menu_items), element_index);
         this.attach_decorator(new Sprite(0, 0, canvas.width - playground_width - element_sprite_size, this.h), element_sprite_size, 0);
         if (this.decorator)
-            this.decorator.attach_text(new Text(elements[element_index].name, menu_font_size, menu_font));
+            this.decorator.attach_text(new Text_specs(elements[element_index].name, menu_font_size, menu_font));
         return this;
     }
 

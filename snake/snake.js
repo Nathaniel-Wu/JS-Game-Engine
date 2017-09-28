@@ -546,7 +546,7 @@ class ScoreBoard extends Sprite {
     }
 
     draw() {
-        this.attach_text(new Text("" + this.score, 35, "Helvetica"));
+        this.attach_text(new Text_specs("" + this.score, 35, "Helvetica"));
         super.draw();
     }
 }

@@ -976,7 +976,7 @@ class Texture {
     }
 }
 
-class Text {
+class Text_specs {
     constructor(text, size, font) {
         this.text = text;
         this.size = size;
@@ -1004,7 +1004,7 @@ class Sprite extends CollidableGObject {
     }
 
     attach_text(text) {
-        if (!text instanceof Text)
+        if (!text instanceof Text_specs)
             throw "Non-Text parameter error";
         this.text = text;
     }
