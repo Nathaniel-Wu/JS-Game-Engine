@@ -58,17 +58,8 @@ class FoodSprite extends PlaySprite {
     }
 
     actual_draw() {
-        var imagedata = context.createImageData(this.w, this.h);
-        for (var x = 0; x < imagedata.width; x++)
-            for (var y = 0; y < imagedata.height; y++) {
-                var pixelindex = (y * imagedata.width + x) * 4;
-                imagedata.data[pixelindex] = food_color.r;
-                imagedata.data[pixelindex + 1] = food_color.g;
-                imagedata.data[pixelindex + 2] = food_color.b;
-                imagedata.data[pixelindex + 3] = food_color.a;
-            }
-        context.putImageData(imagedata, this.coord.x, this.coord.y);
-        context.putImageData(imagedata, this.coord.x, this.coord.y);
+        context.fillStyle = "rgba(" + food_color.r + "," + food_color.g + "," + food_color.b + "," + food_color.a + ")";
+        context.fillRect(this.coord.x, this.coord.y, this.w, this.h);
         context.beginPath();
         context.lineWidth = "1";
         context.strokeStyle = "black";
@@ -159,36 +150,21 @@ class SpoiledFoodSprite extends FoodSprite {
 
     actual_draw() {
         this.draw_count++;
+        var draw = false;
         if (this.cycle < 5) {
-            if (this.draw_count % 30 < 24) {
-                var imagedata = context.createImageData(this.w, this.h);
-                for (var x = 0; x < imagedata.width; x++)
-                    for (var y = 0; y < imagedata.height; y++) {
-                        var pixelindex = (y * imagedata.width + x) * 4;
-                        imagedata.data[pixelindex] = spoiled_food_color.r;
-                        imagedata.data[pixelindex + 1] = spoiled_food_color.g;
-                        imagedata.data[pixelindex + 2] = spoiled_food_color.b;
-                        imagedata.data[pixelindex + 3] = spoiled_food_color.a;
-                    }
-                context.putImageData(imagedata, this.coord.x, this.coord.y);
-            }
-        } else {
-            var imagedata = context.createImageData(this.w, this.h);
-            for (var x = 0; x < imagedata.width; x++)
-                for (var y = 0; y < imagedata.height; y++) {
-                    var pixelindex = (y * imagedata.width + x) * 4;
-                    imagedata.data[pixelindex] = spoiled_food_color.r;
-                    imagedata.data[pixelindex + 1] = spoiled_food_color.g;
-                    imagedata.data[pixelindex + 2] = spoiled_food_color.b;
-                    imagedata.data[pixelindex + 3] = spoiled_food_color.a;
-                }
-            context.putImageData(imagedata, this.coord.x, this.coord.y);
+            if (this.draw_count % 30 < 24)
+                draw = true;
+        } else
+            draw = true;
+        if (draw) {
+            context.fillStyle = "rgba(" + spoiled_food_color.r + "," + spoiled_food_color.g + "," + spoiled_food_color.b + "," + spoiled_food_color.a + ")";
+            context.fillRect(this.coord.x, this.coord.y, this.w, this.h);
+            context.beginPath();
+            context.lineWidth = "1";
+            context.strokeStyle = "black";
+            context.rect(this.coord.x, this.coord.y, this.w, this.h);
+            context.stroke();
         }
-        context.beginPath();
-        context.lineWidth = "1";
-        context.strokeStyle = "black";
-        context.rect(this.coord.x, this.coord.y, this.w, this.h);
-        context.stroke();
     }
 
     eat_by(s) {
@@ -294,25 +270,14 @@ class SnakeSprite extends PlaySprite {
 
     actual_draw() {
         var imagedata = context.createImageData(this.w, this.h);
-        if (this.is_snake_head())
-            for (var x = 0; x < imagedata.width; x++)
-                for (var y = 0; y < imagedata.height; y++) {
-                    var pixelindex = (y * imagedata.width + x) * 4;
-                    imagedata.data[pixelindex] = 63;
-                    imagedata.data[pixelindex + 1] = 63;
-                    imagedata.data[pixelindex + 2] = 0;
-                    imagedata.data[pixelindex + 3] = snake_color.a;
-                }
-        else
-            for (var x = 0; x < imagedata.width; x++)
-                for (var y = 0; y < imagedata.height; y++) {
-                    var pixelindex = (y * imagedata.width + x) * 4;
-                    imagedata.data[pixelindex] = snake_color.r;
-                    imagedata.data[pixelindex + 1] = snake_color.g;
-                    imagedata.data[pixelindex + 2] = snake_color.b;
-                    imagedata.data[pixelindex + 3] = snake_color.a;
-                }
-        context.putImageData(imagedata, this.coord.x, this.coord.y);
+        if (this.is_snake_head()) {
+            context.fillStyle = "rgba(63,63,0," + snake_color.a + ")";
+            context.fillRect(this.coord.x, this.coord.y, this.w, this.h);
+        }
+        else {
+            context.fillStyle = "rgba(" + snake_color.r + "," + snake_color.g + "," + snake_color.b + "," + snake_color.a + ")";
+            context.fillRect(this.coord.x, this.coord.y, this.w, this.h);
+        }
         context.beginPath();
         context.lineWidth = "1";
         context.strokeStyle = "black";
