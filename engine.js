@@ -520,6 +520,112 @@ class BoundingVolume {
     }
 }
 
+//---------------------------------------------- Circle Bounding Volume
+
+class CircleBoundingVolume extends BoundingVolume {
+    constructor(x_offset, y_offset, radius) {
+        if (!Utilities.isInteger(x_offset) || !Utilities.isInteger(y_offset) || !Utilities.isInteger(radius))
+            throw "Non-integer parameter error";
+        this.coord_offset = new Coordinate(x_offset, y_offset);
+        this.radius = radius;
+        this.GObj = null;
+        this.parent = null;
+        this.children = null;
+    }
+
+    get_center_coordinate() {
+        return this.get_actual_coordinate();
+    }
+
+    attach_child_BoundingVolume(bv) {
+        if (!bv instanceof BoundingVolume)
+            throw "Non-BoundingVolume parameter error";
+        if (!this.children)
+            this.children = new Array();
+        for (var i = 0; i < this.children.length; i++)
+            if (bv === this.children[i])
+                throw "Child BoundingVolume already exists error";
+        if (bv instanceof CircleBoundingVolume) {
+            var delta_v = this.coord_offset.subtract(bv.coord_offset);
+            var delta_d = Math.sqrt(delta_v.dot(delta_v));
+            if (delta_d + bv.radius > this.radius)
+                throw "Child BoundingVolume out of parent BoundingVolume error";
+        } else {
+            var ul = this.GObj.coord.add(bv.coord_offset);
+            var lr = ul.add(new Vector(bv.w, bv.h));
+            if (!this.check_coordinate_without_children(ul) || !this.check_coordinate_without_children(lr))
+                throw "Child BoundingVolume out of parent BoundingVolume error";
+        }
+        bv.GObj = this.GObj;
+        bv.parent = this;
+        this.children.push(bv);
+    }
+
+    check_coordinate_without_children(coord) {
+        if (!coord instanceof Coordinate)
+            throw "Non-Coordinate parameter error";
+        var delta_v = this.get_actual_coordinate().subtract(coord);
+        if (delta_v.dot(delta_v) >= this.radius * this.radius)
+            return false;
+        return true;
+    }
+
+    Minkowski_add(bv) {
+        if (!bv instanceof BoundingVolume)
+            throw "Non-BoundingVolume parameter error";
+        if (bv instanceof CircleBoundingVolume) {
+            var MS = new CircleBoundingVolume(this.coord_offset.x, this.coord_offset.y, this.radius + bv.radius);
+            MS.GObj = this.GObj;
+            return MS;
+        } else {
+            //Add with box bounding volume, implementation pending.
+            return null;
+        }
+    }
+
+    ray_intersection(r) {
+        if (!r instanceof Ray)
+            throw "Non-Ray parameter error";
+        var a = this.actual_coordinate();
+        var delta_v = a.subtract(r.origin);
+        if (delta_v.dot(r.direction) < 0)
+            return null;
+        else {
+            var ao = r.origin.subtract(a);
+            var t = -(ao.x * r.direction.x + ao.y * r.direction.y) / (r.direction.x * r.direction.x + r.direction.y * r.direction.y);
+            var i = r.origin.add(r.direction.scale(t));
+            var ia = a.subtract(i);
+            if (ia.dot(ia) > this.radius * this.radius)
+                return null;
+            else {
+                //Reflection ray, implementation pending.
+                return null;
+            }
+        }
+    }
+
+    check_overlap_without_children(bv) {
+        if (!bv instanceof BoundingVolume)
+            throw "Non-BoundingVolume parameter error";
+        if (bv instanceof CircleBoundingVolume) {
+            var delta_v = bv.get_actual_coordinate().subtract(this.get_actual_coordinate());
+            if (delta_v.dot(delta_v) >= (this.radius + bv.radius) * (this.radius + bv.radius))
+                return false;
+            return true;
+        } else {
+            var ul = bv.get_actual_coordinate();
+            var lr = ul.add(new Vector(bv.w, bv.h));
+            if (!this.check_coordinate_without_children(ul) && !this.check_coordinate_without_children(lr))
+                return false;
+            return true;
+        }
+    }
+
+    check_overlap_without_children_unstrict(bv) {
+        return this.check_overlap_without_children(bv);
+    }
+}
+
 //---------------------------------------------- Collision
 
 const CPType = { HARD: 0, PASSIVE: 1 };//Collision property type
