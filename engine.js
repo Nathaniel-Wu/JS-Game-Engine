@@ -4,26 +4,37 @@ var canvas_y;
 var context;
 var input_event_subscription_manager;
 
-//---------------------------------------------- Initialization
+//---------------------------------------------- Game
 
-function init_canvas_and_context() {
-    canvas = document.getElementById("canvas");
-    canvas_x = canvas.getBoundingClientRect().left;
-    canvas_y = canvas.getBoundingClientRect().top;
-    context = canvas.getContext("2d");
-}
+class Game {
+    constructor() {
+        this.canvas = null;
+        this.canvas_x = 0;
+        this.canvas_y = 0;
+        this.context = null;
+        this.input_event_subscription_manager = null;
+    }
 
-function init_input_listeners() {
-    input_event_subscription_manager = new Input_Event_Subscription_Manager();
-    canvas.addEventListener("mousedown", onMouseDown);
-    canvas.addEventListener("mousemove", onMouseMove);
-    canvas.addEventListener("mouseup", onMouseUp);
-    document.addEventListener("keydown", onKeyDown);
-}
+    init() {
+        this.canvas = document.getElementById("canvas");
+        this.canvas_x = canvas.getBoundingClientRect().left;
+        this.canvas_y = canvas.getBoundingClientRect().top;
+        this.context = canvas.getContext("2d");
+        this.input_event_subscription_manager = new Input_Event_Subscription_Manager();
+        this.canvas.addEventListener("mousedown", onMouseDown);
+        this.canvas.addEventListener("mousemove", onMouseMove);
+        this.canvas.addEventListener("mouseup", onMouseUp);
+        document.addEventListener("keydown", onKeyDown);
+        switch_context();
+    }
 
-function init_engine() {
-    init_canvas_and_context();
-    init_input_listeners();
+    switch_context() {
+        canvas = this.canvas;
+        canvas_x = this.canvas_x;
+        canvas_y = this.canvas_y;
+        context = this.context;
+        input_event_subscription_manager = this.input_event_subscription_manager;
+    }
 }
 
 //---------------------------------------------- Utilities
