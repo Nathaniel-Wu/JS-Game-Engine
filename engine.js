@@ -561,6 +561,7 @@ class CircleBoundingVolume extends BoundingVolume {
     constructor(x_offset, y_offset, radius) {
         if (!Utilities.isInteger(x_offset) || !Utilities.isInteger(y_offset) || !Utilities.isInteger(radius))
             throw "Non-integer parameter error";
+        super(x_offset, y_offset, 2 * radius, 2 * radius);
         this.coord_offset = new Coordinate(x_offset, y_offset);
         this.radius = radius;
         this.GObj = null;
