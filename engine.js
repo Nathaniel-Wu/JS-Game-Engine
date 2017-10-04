@@ -1758,6 +1758,8 @@ class SceneGraphNode extends GObject {
     }
 
     move(vect) {
+        if (!this.movable)
+            return;
         if (this.content)
             this.content.move(vect);
         else if (this.children)
@@ -1766,6 +1768,8 @@ class SceneGraphNode extends GObject {
     }
 
     move_to(coord) {
+        if (!this.movable)
+            return;
         if (this.content)
             this.content.move_to(coord);
         else if (this.children)
@@ -1782,6 +1786,8 @@ class SceneGraphNode extends GObject {
     }
 
     actual_draw() {
+        if (!this.visble)
+            return;
         if (this.content)
             this.content.draw();
         else if (this.children)
@@ -1802,10 +1808,14 @@ class SceneGraph extends GObject {
     }
 
     move(vect) {
+        if (!this.movable)
+            return;
         this.root.move(vect);
     }
 
     move_to(coord) {
+        if (!this.movable)
+            return;
         this.root.move_to(vect);
     }
 
@@ -1814,6 +1824,8 @@ class SceneGraph extends GObject {
     }
 
     actual_draw() {
+        if (!this.visble)
+            return;
         this.root.draw();
     }
 }
