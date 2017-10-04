@@ -1717,3 +1717,103 @@ class Input_Event_Subscription_Manager {
             this.release_exclusive(si, i);
     }
 }
+
+//---------------------------------------------- Scene Graph Node
+
+class SceneGraphNode extends GObject {
+    constructor() {
+        super();
+        this.coord = null;
+        this.w = null;
+        this.h = null;
+        this.content = null;
+        this.children = null;
+    }
+
+    attach_content(content) {
+        if (!content instanceof GObject)
+            throw "Non-GObject parameter error";
+        if (!this.content)
+            this.content = content;
+        else {
+            var contentSGNode = new SceneGraphNode();
+            contentSGNode.attach_content(content);
+            this.attach_child(contentSGNode);
+        }
+    }
+
+    attach_child(SGNode) {
+        if (!SGNode instanceof SceneGraphNode)
+            throw "Non-SceneGraphNode parameter error";
+        if (!this.children) {
+            this.children = new Array();
+            if (this.content) {
+                var contentSGNode = new SceneGraphNode();
+                contentSGNode.attach_content(this.content);
+                this.children.push(contentSGNode);
+                this.content = null;
+            }
+        }
+        this.children.push(SGNode);
+    }
+
+    move(vect) {
+        if (this.content)
+            this.content.move(vect);
+        else if (this.children)
+            for (var i = 0; i < this.children.length; i++)
+                this.children[i].move(vect);
+    }
+
+    move_to(coord) {
+        if (this.content)
+            this.content.move_to(coord);
+        else if (this.children)
+            for (var i = 0; i < this.children.length; i++)
+                this.children[i].move_to(coord);
+    }
+
+    update() {
+        if (this.content)
+            this.content.update();
+        else if (this.children)
+            for (var i = 0; i < this.children.length; i++)
+                this.children[i].update();
+    }
+
+    actual_draw() {
+        if (this.content)
+            this.content.draw();
+        else if (this.children)
+            for (var i = 0; i < this.children.length; i++)
+                this.children[i].draw();
+    }
+}
+
+//---------------------------------------------- Scene Graph
+
+class SceneGraph extends GObject {
+    constructor() {
+        super();
+        this.coord = null;
+        this.w = null;
+        this.h = null;
+        this.root = new SceneGraphNode();
+    }
+
+    move(vect) {
+        this.root.move(vect);
+    }
+
+    move_to(coord) {
+        this.root.move_to(vect);
+    }
+
+    update() {
+        this.root.update();
+    }
+
+    actual_draw() {
+        this.root.draw();
+    }
+}
