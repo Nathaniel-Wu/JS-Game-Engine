@@ -518,36 +518,38 @@ class ScoreBoard extends Sprite {
 
 //---------------------------------------------- Game Design
 
-function init_game() {
-    init_engine();
-    playgrid = new PlayGrid();
-    foods = new Array();
-    snake = new Snake();
-    for (var i = 0; i < 10; i++)
-        FoodSprite.create_ramdom_food();
-    scoreboard = new ScoreBoard();
+class SnakeGame extends Game {
+    constructor() {
+        super(60);
+    }
+
+    init() {
+        super.init();
+        playgrid = new PlayGrid();
+        foods = new Array();
+        snake = new Snake();
+        for (var i = 0; i < 10; i++)
+            FoodSprite.create_ramdom_food();
+        scoreboard = new ScoreBoard();
+    }
+
+    update() {
+        snake.update();
+    }
+
+    draw() {
+        canvas.width = canvas.width;
+        playgrid.draw();
+        for (var i = 0; i < foods.length; i++)
+            foods[i].draw();
+        snake.draw();
+        FoodSprite.draw();
+        scoreboard.draw();
+    }
 }
 
 //---------------------------------------------- Run
 
-function update() {
-    snake.update();
-}
-
-function draw() {
-    canvas.width = canvas.width;
-    playgrid.draw();
-    for (var i = 0; i < foods.length; i++)
-        foods[i].draw();
-    snake.draw();
-    FoodSprite.draw();
-    scoreboard.draw();
-}
-
-function game_loop() {
-    update();
-    draw();
-}
-
-init_game();
-setInterval(game_loop, 16.67);
+var game = new SnakeGame();
+game.init();
+game.start_loop();

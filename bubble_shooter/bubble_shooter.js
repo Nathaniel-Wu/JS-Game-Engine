@@ -1,19 +1,27 @@
+//---------------------------------------------- Bubble Shooter
+
 class BubbleShooter extends Game {
     constructor() {
-        super();
+        super(60);
         this.bubbles = null;
         this.shooter = null;
     }
 
-    init(){
+    init() {
         super.init();
         //Do something
     }
 
-    update() { }
+    update() {
+        //Do something
+    }
 
-    draw() { }
+    draw() {
+        //Do something
+    }
 }
+
+//---------------------------------------------- Bubble Sprite
 
 class Bubble extends Sprite {
     constructor(x, y, r) {//Center coord and radius
@@ -41,3 +49,9 @@ class Bubble extends Sprite {
         //Do something
     }
 }
+
+//---------------------------------------------- Run
+
+var game = new BubbleShooter();
+game.init();
+game.start_loop();

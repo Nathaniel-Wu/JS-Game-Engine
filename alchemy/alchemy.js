@@ -340,6 +340,49 @@ class Menu extends WorldTree {
 
 //---------------------------------------------- Game Design
 
+class Alchemy extends Game {
+    constructor() {
+        super(60);
+    }
+
+    init() {
+        super.init();
+        playground_width = Math.round(canvas.width * 0.8);
+        load_elements();
+        load_rules();
+        playground = new Playground();
+        menu = new Menu(playground);
+        load_menu();
+    }
+
+    update() {
+        playground.update();
+        menu.update();
+    }
+
+    draw() {
+        canvas.width = canvas.width;
+        //Draw bounds
+        context.beginPath();
+        context.lineWidth = "1";
+        context.strokeStyle = "grey";
+        context.rect(0, 0, canvas.width, canvas.height);
+        context.stroke();
+
+        //Draw line between playground and sidebar
+        context.beginPath();
+        context.lineWidth = "1";
+        context.strokeStyle = "grey";
+        context.moveTo(playground_width, 0);
+        context.lineTo(playground_width, canvas.height);
+        context.stroke();
+
+        playground.draw();
+
+        menu.draw();
+    }
+}
+
 function load_elements() {
     create_element("air", new Texture("http://i.imgur.com/PdoBAcx.png").Texture_id);
     create_element("earth", new Texture("http://i.imgur.com/J72A0Il.png").Texture_id);
@@ -369,49 +412,8 @@ function load_menu() {
     create_menu_item("water");
 }
 
-function init_game() {
-    init_engine();
-    playground_width = Math.round(canvas.width * 0.8);
-    load_elements();
-    load_rules();
-    playground = new Playground();
-    menu = new Menu(playground);
-    load_menu();
-}
-
 //---------------------------------------------- Run
 
-function update() {
-    playground.update();
-    menu.update();
-}
-
-function draw() {
-    canvas.width = canvas.width;
-    //Draw bounds
-    context.beginPath();
-    context.lineWidth = "1";
-    context.strokeStyle = "grey";
-    context.rect(0, 0, canvas.width, canvas.height);
-    context.stroke();
-
-    //Draw line between playground and sidebar
-    context.beginPath();
-    context.lineWidth = "1";
-    context.strokeStyle = "grey";
-    context.moveTo(playground_width, 0);
-    context.lineTo(playground_width, canvas.height);
-    context.stroke();
-
-    playground.draw();
-
-    menu.draw();
-}
-
-function game_loop() {
-    update();
-    draw();
-}
-
-init_game();
-setInterval(game_loop, 16.67);
+var game = new Alchemy();
+game.init();
+game.start_loop();
