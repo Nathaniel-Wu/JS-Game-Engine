@@ -1728,6 +1728,7 @@ class SceneGraphNode extends GObject {
         this.h = null;
         this.content = null;
         this.children = null;
+        this.name = "";
     }
 
     attach_content(content) {
@@ -1755,6 +1756,28 @@ class SceneGraphNode extends GObject {
             }
         }
         this.children.push(SGNode);
+    }
+
+    assign_name(name) {
+        if (typeof name !== 'string')
+            throw "Non-String parameter error";
+        if (!this.get_child_by_name(name))
+            this.name = name;
+    }
+
+    get_child_by_name(name) {
+        if (typeof name !== 'string')
+            throw "Non-String parameter error";
+        if (Utilities.string_compare(this.children[i].name, name))
+            return this;
+        if (this.content)
+            return null;
+        for (var i = 0; i < this.children.length; i++) {
+            var res = this.children[i].get_child_by_name(name);
+            if (res)
+                return res;
+        }
+        return null;
     }
 
     move(vect) {
@@ -1805,6 +1828,10 @@ class SceneGraph extends GObject {
         this.w = null;
         this.h = null;
         this.root = new SceneGraphNode();
+    }
+
+    get_node_by_name(name) {
+        return this.root.get_child_by_name(name);
     }
 
     move(vect) {
