@@ -7,12 +7,14 @@ var input_event_subscription_manager;
 //---------------------------------------------- Game
 
 class Game {
-    constructor() {
+    constructor(framerate) {
         this.canvas = null;
         this.canvas_x = 0;
         this.canvas_y = 0;
         this.context = null;
         this.input_event_subscription_manager = null;
+        this.loop_handle = null;
+        this.inter_frame = 1 / framerate;
     }
 
     init() {
@@ -25,7 +27,7 @@ class Game {
         this.canvas.addEventListener("mousemove", onMouseMove);
         this.canvas.addEventListener("mouseup", onMouseUp);
         document.addEventListener("keydown", onKeyDown);
-        switch_context();
+        this.switch_context();
     }
 
     switch_context() {
@@ -39,6 +41,24 @@ class Game {
     update() { }
 
     draw() { }
+
+    loop() {
+        this.update();
+        this.draw();
+    }
+
+    start_loop() {
+        if (this.loop_handle)
+            throw "Already in loop error";
+        var t = this;
+        this.loop_handle = setInterval(function () { t.loop(); }, this.inter_frame);
+    }
+
+    stop_loop() {
+        if (!this.loop_handle)
+            throw "Not in loop error";
+        clearInterval(this.loop_handle);
+    }
 }
 
 //---------------------------------------------- Utilities
@@ -1203,6 +1223,7 @@ class Sprite extends CollidableGObject {
         }
         if (this.text) {
             context.font = this.text.font;
+            context.fillStyle = 'black';
             context.fillText(this.text.text, this.coord.x, this.coord.y + Math.round(this.h - (this.h - this.text.size) / 2), this.w);
             context.beginPath();
         }
