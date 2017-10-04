@@ -12,6 +12,7 @@ class BubbleShooter extends Game {
         this.bubbles = new Array();
         //Test Code
         this.bubbles.push(new Bubble(100, 100, 30, 255, 0, 0, 255));
+        this.shooter = new Shooter(0, 0, 100);
     }
 
     update() {
@@ -86,6 +87,52 @@ class Bubble extends Sprite {
         context.arc(this.coord.x, this.coord.y, 0.67 * this.radius, 1.3 * Math.PI, 1.37 * Math.PI);
         context.strokeStyle = "white";
         context.stroke();
+    }
+}
+
+//---------------------------------------------- Shooter
+
+class ShooterBase extends Sprite {
+    constructor(x, y, w, h) {
+        super(x, y, w, h);
+        this.movable = false;
+    }
+
+    actual_draw() {
+        //Draw base
+    }
+}
+
+class ShooterBarrel extends Sprite {
+    constructor(x, y, w, h) {
+        super(x, y, w, h);
+        this.movable = false;
+        this.angle = null;
+    }
+
+    reorient() {
+        if (this.angle) {
+            //Rotate around base
+            this.angle = null;
+        }
+    }
+
+    update() {
+        super.update();
+        this.reorient();
+    }
+
+    actual_draw() {
+        //Draw barrel
+    }
+}
+
+class Shooter extends SceneGraph {
+    constructor(x, y, w) {
+        super(x, y, w, w);
+        this.movable = false;
+        this.attach_content(new ShooterBase(x, y, w, 0.618 * w));
+        this.attach_content(new ShooterBarrel(x, y, 0.618 * w, w));
     }
 }
 
