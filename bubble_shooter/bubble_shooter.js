@@ -9,15 +9,26 @@ class BubbleShooter extends Game {
 
     init() {
         super.init();
-        //Do something
+        this.bubbles = new Array();
+        //Test Code
+        this.bubbles.push(new Bubble(100, 100, 30, 255, 0, 0, 255));
     }
 
     update() {
-        //Do something
+        if (this.bubbles)
+            for (var i = 0; i < this.bubbles.length; i++)
+                this.bubbles[i].update();
+        if (this.shooter)
+            this.shooter.update();
     }
 
     draw() {
-        //Do something
+        this.canvas.width = this.canvas.width;
+        if (this.bubbles)
+            for (var i = 0; i < this.bubbles.length; i++)
+                this.bubbles[i].draw();
+        if (this.shooter)
+            this.shooter.draw();
     }
 }
 
@@ -28,6 +39,7 @@ class Bubble extends Sprite {
         super(x - radius, y - radius, 2 * radius, 2 * radius);
         this.coord.x += radius;
         this.coord.y += radius;
+        this.radius = radius;
         this.root_bounding_volume = new CircleBoundingVolume(0, 0, radius);
         this.root_bounding_volume.GObj = this;
         this.color = null;
@@ -54,7 +66,7 @@ class Bubble extends Sprite {
     }
 
     update() {
-        //Do something
+        super.update();
     }
 
     actual_draw() {
