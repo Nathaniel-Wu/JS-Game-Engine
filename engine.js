@@ -35,6 +35,10 @@ class Game {
         context = this.context;
         input_event_subscription_manager = this.input_event_subscription_manager;
     }
+
+    update() { }
+
+    draw() { }
 }
 
 //---------------------------------------------- Utilities
