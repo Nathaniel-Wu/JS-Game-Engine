@@ -251,10 +251,9 @@ class IDGenerator {
     }
 
     get_id_index(id) {
-        for (var i = 0; i < this.assigned_ids.length; i++) {
+        for (var i = 0; i < this.assigned_ids.length; i++)
             if (this.assigned_ids[i] === id)
                 return i;
-        }
         return -1;
     }
 
@@ -298,10 +297,8 @@ class GObject {
         if (this.movable)
             if (!this.moveVect)
                 this.moveVect = vect;
-            else {
+            else
                 this.moveVect = this.moveVect.add(vect);
-
-            }
     }
 
     move_to(coord) {
