@@ -1,47 +1,86 @@
 //---------------------------------------------- Bubble Shooter
 
+const shooter_width = 100;
+const bubble_colors = [
+    { 'r': 255, 'g': 0, 'b': 0 },
+    { 'r': 0, 'g': 255, 'b': 0 },
+    { 'r': 0, 'g': 0, 'b': 255 }
+];
 class BubbleShooter extends Game {
     constructor() {
         super(60);
-        this.bubbles = null;
+        this.fixed_bubbles = null;
+        this.moving_bubbles = null;
         this.shooter = null;
     }
 
     init() {
         super.init();
-        this.bubbles = new Array();
-        //Test Code
-        this.bubbles.push(new Bubble(100, 100, 30, 255, 0, 0, 255));
-        this.shooter = new Shooter(0, 0, 100);
+        max_col_0 = Math.floor(canvas.width / (2 * bubble_radius));
+        max_col_1 = Math.floor((canvas.width - bubble_radius) / (2 * bubble_radius));
+        max_row = Math.floor(canvas.height / (sqrt_of_3 * bubble_radius));
+        this.fixed_bubbles = new Array();
+        this.moving_bubbles = new Array();
+        this.shooter = new Shooter(Math.round((this.canvas.width - shooter_width) / 2), 0, shooter_width);
+        this.shooter.coord.y = this.canvas.height - this.shooter.get_node_by_name("base").content.h;
     }
 
     update() {
-        if (this.bubbles)
-            for (var i = 0; i < this.bubbles.length; i++)
-                this.bubbles[i].update();
+        if (this.fixed_bubbles)
+            for (var i = 0; i < this.fixed_bubbles.length; i++)
+                this.fixed_bubbles[i].update();
+        if (this.moving_bubbles)
+            for (var i = 0; i < this.moving_bubbles.length; i++)
+                this.moving_bubbles[i].update();
         if (this.shooter)
             this.shooter.update();
     }
 
     draw() {
         this.canvas.width = this.canvas.width;
-        if (this.bubbles)
-            for (var i = 0; i < this.bubbles.length; i++)
-                this.bubbles[i].draw();
+        if (this.fixed_bubbles)
+            for (var i = 0; i < this.fixed_bubbles.length; i++)
+                this.fixed_bubbles[i].draw();
+        if (this.moving_bubbles)
+            for (var i = 0; i < this.moving_bubbles.length; i++)
+                this.moving_bubbles[i].draw();
         if (this.shooter)
             this.shooter.draw();
+        context.beginPath();
+        context.strokeStyle = "grey";
+        context.lineWidth = 1;
+        context.rect(0, 0, canvas.width, canvas.height);
+        context.stroke();
+    }
+
+    move_fixed_bubbles_down() {
+        upper_left_bubble_coord.x = upper_left_bubble_coord.x == bubble_radius ? 2 * bubble_radius : bubble_radius;
+        for (var i = 0; i < this.fixed_bubbles.length; i++) {
+            this.fixed_bubbles[i].row++;
+            this.fixed_bubbles[i].coord = Bubble.row_and_col_to_coord({ 'row': this.fixed_bubbles[i].row, 'col': this.fixed_bubbles[i].col });
+        }
+    }
+
+    generate_row_of_fixed_bubbles() {
+        var max_col = upper_left_bubble_coord.x == bubble_radius ? max_col_0 : max_col_1;
+        for (var i = 0; i <= max_col; i++) {
+            var coord = Bubble.row_and_col_to_coord({ 'row': 0, 'col': i });
+            var color = bubble_colors[Utilities.getRandomInt(0, bubble_colors.length)];
+            this.fixed_bubbles.push(new Bubble(coord.x, coord.y, bubble_radius, color.r, color.g, color.b, 255));
+        }
     }
 }
 
 //---------------------------------------------- Bubble Sprite
 
 const bubble_radius = 25;
-const bubble_speed = 50;
+const bubble_speed = 1;
+const min_distance = bubble_speed / bubble_radius;
 const sqrt_of_3 = Math.sqrt(3);
-const upper_left_bubble_coord = new Coordinate(bubble_radius, bubble_radius);
-const max_col_0 = Math.floor(canvas.width / (2 * radius));
-const max_col_1 = Math.floor((canvas.width - bubble_radius) / (2 * radius));
-const max_row = Math.floor(canvas.height / (sqrt_of_3 * radius));
+var max_col_0 = Math.floor(canvas.width / (2 * bubble_radius));
+var max_col_1 = Math.floor((canvas.width - bubble_radius) / (2 * bubble_radius));
+var max_row = Math.floor(canvas.height / (sqrt_of_3 * bubble_radius));
+var upper_left_bubble_coord = new Coordinate(bubble_radius, bubble_radius);
 class Bubble extends Sprite {
     constructor(x, y, radius, r, g, b, a) {//Center coord, radius. color
         super(x - radius, y - radius, 2 * radius, 2 * radius);
@@ -51,6 +90,7 @@ class Bubble extends Sprite {
         this.root_bounding_volume = new CircleBoundingVolume(0, 0, radius);
         this.root_bounding_volume.GObj = this;
         this.color = null;
+        this.direction = null;
         this.assign_color(r, g, b, a);
         this.row = null;
         this.col = null;
@@ -69,12 +109,13 @@ class Bubble extends Sprite {
         this.col = rc.col;
         this.movable = false;
         this.moveVect = null;
+        this.direction = null;
     }
 
     static row_and_col(coord) {
         var row = Math.floor((coord.y - upper_left_bubble_coord.y) / (sqrt_of_3 * bubble_radius));
         var col;
-        if (row % 2 == 0) {
+        if ((upper_left_bubble_coord.x == bubble_radius && row % 2 == 0) || (upper_left_bubble_coord.x != bubble_radius && row % 2 != 0)) {
             col = Math.ceil((coord.x - upper_left_bubble_coord.x) / (2 * bubble_radius));
             col = col < 0 ? 0 : (col > max_col_0 ? max_col_0 : col);
         }
@@ -87,7 +128,7 @@ class Bubble extends Sprite {
     }
 
     static row_and_col_to_coord(rc) {
-        if (rc.row % 2 == 0)
+        if ((upper_left_bubble_coord.x == bubble_radius && rc.row % 2 == 0) || (upper_left_bubble_coord.x != bubble_radius && rc.row % 2 != 0))
             return upper_left_bubble_coord.add(new Coordinate(rc.col * 2 * bubble_radius, rc.row * sqrt_of_3 * bubble_radius));
         else
             return upper_left_bubble_coord.add(new Coordinate((rc.col * 2 + 1) * bubble_radius, rc.row * sqrt_of_3 * bubble_radius));
@@ -112,11 +153,30 @@ class Bubble extends Sprite {
 
     move_prediction() {
         if (this.moveVect)
-            return new Bubble(this.coord.x + this.moveVect.x, this.coord.y + this.moveVect.y, this.r);
-        return new Bubble(this.coord.x, this.coord.y, this.r);
+            return new Bubble(Math.round(this.coord.x + this.moveVect.x), Math.round(this.coord.y + this.moveVect.y), this.radius, 0, 0, 0, 0);
+        return new Bubble(this.coord.x, this.coord.y, this.radius, 0, 0, 0, 0);
     }
 
     update() {
+        if (this.movable && this.direction) {
+            this.moveVect = this.direction.scale(bubble_speed / Math.sqrt(this.direction.dot(this.direction)));
+            var prediction = this.move_prediction();
+            for (var i = 0; i < game.fixed_bubbles.length; i++) {
+                var distance = prediction.distance_to(game.fixed_bubbles[i]);
+                if (distance < min_distance) {
+                    this.fix_location(Bubble.row_and_col_to_coord(Bubble.row_and_col(prediction.coord)));
+                    var index;
+                    for (var j = 0; j < game.moving_bubbles.length; j++)
+                        if (game.moving_bubbles[j] === this) {
+                            index = j;
+                            return;
+                        }
+                    game.fixed_bubbles(game.moving_bubbles.splice(index, 1)[0]);
+                    break;
+                }
+            }
+            CollidableGObject.rm_CollidableGObject_instance_ref(prediction.CollidableGObject_id);
+        }
         super.update();
     }
 
@@ -157,7 +217,7 @@ class ShooterBase extends Sprite {
     }
 }
 
-const shooter_barrel_color = shooter_base_color;
+const shooter_barrel_color = { 'r': 63, 'g': 63, 'b': 63, 'a': 255 };
 const min_angle = -45;
 const max_angle = 45;
 class ShooterBarrel extends Sprite {
@@ -175,28 +235,73 @@ class ShooterBarrel extends Sprite {
 
     actual_draw() {
         context.beginPath();
-        context.fillStyle = "rgba(" + shooter_base_color.r + "," + shooter_base_color.g + "," + shooter_base_color.b + "," + shooter_base_color.a + ")";
+        context.fillStyle = "rgba(" + shooter_barrel_color.r + "," + shooter_barrel_color.g + "," + shooter_barrel_color.b + "," + shooter_barrel_color.a + ")";
         context.fillRect(this.coord.x, this.coord.y, this.w, this.h);
     }
 }
 
 class Shooter extends SceneGraph {
     constructor(x, y, w) {//Upper left corner of base, width of base
-        super(x, y, w, w);
+        super();
+        this.coord = new Coordinate(x, y);
+        this.w = w;
         this.movable = false;
         this.root.assign_name("shooter");
         var base = new SceneGraphNode();
-        base.attach_content(new ShooterBase(w, 0.618 * w));
+        base.attach_content(new ShooterBase(w, Math.round(0.618 * w)));
         base.assign_name("base");
         this.root.attach_child(base);
         var barrel = new SceneGraphNode();
-        barrel.attach_content(new ShooterBarrel(0.618 * w, w));
+        barrel.attach_content(new ShooterBarrel(Math.round(0.382 * w), Math.round(1.1 * w)));
         barrel.assign_name("barrel");
         this.root.attach_child(barrel);
+        this.si = game.input_event_subscription_manager.add_subscriber(this);
+        this.last_shoot = -1;
+    }
+
+    handle_input_event(event) {
+        game.input_event_subscription_manager.set_exclusive(this.si, event.type);
+        var barrel = this.get_node_by_name("barrel").content;
+        switch (event.type) {
+            case IEType.LEFT: {
+                barrel.angle--;
+                break;
+            }
+            case IEType.RIGHT: {
+                barrel.angle++;
+                break;
+            }
+            case IEType.SPACE: {
+                this.shoot();
+                break;
+            }
+        }
+        game.input_event_subscription_manager.release_exclusive(this.si, event.type);
     }
 
     shoot() {
-        //Ganerate a moving bubble from barrel end
+        if (this.last_shoot != -1)
+            return;
+        var base = this.get_node_by_name("base").content;
+        var barrel = this.get_node_by_name("barrel").content;
+        var direction = new Vector(barrel.h * Math.sin(barrel.angle / 180 * Math.PI), -barrel.h * Math.cos(barrel.angle / 180 * Math.PI));
+        var coord = new Coordinate(this.coord.x + Math.round(base.w / 2), this.coord.y + Math.round(base.h / 2));
+        coord.x = Math.round(coord.x + direction.x);
+        coord.y = Math.round(coord.y + direction.y);
+        var color = bubble_colors[Utilities.getRandomInt(0, bubble_colors.length)];
+        var bubble = new Bubble(coord.x, coord.y, bubble_radius, color.r, color.g, color.b, 255);
+        bubble.direction = direction;
+        game.moving_bubbles.push(bubble);
+        this.last_shoot = 0;
+    }
+
+    update() {
+        super.update();
+        if (this.last_shoot != -1) {
+            this.last_shoot++;
+            if (this.last_shoot == 2 * bubble_radius / bubble_speed)
+                this.last_shoot = -1;
+        }
     }
 
     actual_draw() {
@@ -211,7 +316,7 @@ class Shooter extends SceneGraph {
         context.save();
         context.translate(this.coord.x + Math.round((this.w - barrel.w) / 2), this.coord.y - barrel.h + Math.round(base.h / 2));
         context.translate(Math.round(barrel.w / 2), barrel.h);
-        context.rotate(barrel.angle < 0 ? -1 : barrel.angle / 180 * Math.PI);
+        context.rotate(barrel.angle / 180 * Math.PI);
         context.translate(-Math.round(barrel.w / 2), -barrel.h);
         barrel.actual_draw();
         context.restore();
