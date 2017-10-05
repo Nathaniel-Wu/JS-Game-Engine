@@ -146,9 +146,9 @@ class Vector {
 //---------------------------------------------- Coordinate
 
 class Coordinate extends Vector {
-    constructor(x, y) {
+    constructor(x, y) {/*
         if (!Utilities.isInteger(x) || !Utilities.isInteger(y))
-            throw "Non-integer parameter";
+            throw "Non-integer parameter";*/
         super(x, y);
     }
 
@@ -171,7 +171,7 @@ class Coordinate extends Vector {
     }
 
     add(v) {
-        if (v instanceof Coordinate || (v instanceof Vector && Utilities.isInteger(v.x) && Utilities.isInteger(v.y))) {
+        if (v instanceof Coordinate || (v instanceof Vector /*&& Utilities.isInteger(v.x) && Utilities.isInteger(v.y)*/)) {
             var res = super.add(v);
             return new Coordinate(res.x, res.y);
         }
@@ -1576,7 +1576,7 @@ class WorldTree extends GObject {
 
 //---------------------------------------------- Input Events
 
-const IEType_total = 7;
+const IEType_total = 8;
 const IEType = {
     SELECT: 0,
     DRAG: 1,
@@ -1584,7 +1584,8 @@ const IEType = {
     UP: 3,
     DOWN: 4,
     LEFT: 5,
-    RIGHT: 6
+    RIGHT: 6,
+    SPACE: 7
 };
 
 class Input_Event {
@@ -1632,6 +1633,9 @@ function onKeyDown(e) {
             break;
         case 39:
             input_event_subscription_manager.publish_input_event(new Input_Event(IEType.RIGHT, null));
+            break;
+        case 32:
+            input_event_subscription_manager.publish_input_event(new Input_Event(IEType.SPACE, null));
             break;
     }
 }
@@ -1722,7 +1726,7 @@ class Input_Event_Subscription_Manager {
 
 class SceneGraphNode extends GObject {
     constructor() {
-        super();
+        super(0, 0, 0, 0);
         this.coord = null;
         this.w = null;
         this.h = null;
@@ -1768,10 +1772,11 @@ class SceneGraphNode extends GObject {
     get_child_by_name(name) {
         if (typeof name !== 'string')
             throw "Non-String parameter error";
-        if (Utilities.string_compare(this.children[i].name, name))
-            return this;
-        if (this.content)
-            return null;
+        if (!this.children) {
+            if (Utilities.string_compare(this.name, name))
+                return this;
+            return null
+        }
         for (var i = 0; i < this.children.length; i++) {
             var res = this.children[i].get_child_by_name(name);
             if (res)
@@ -1823,7 +1828,7 @@ class SceneGraphNode extends GObject {
 
 class SceneGraph extends GObject {
     constructor() {
-        super();
+        super(0, 0, 0, 0);
         this.coord = null;
         this.w = null;
         this.h = null;
