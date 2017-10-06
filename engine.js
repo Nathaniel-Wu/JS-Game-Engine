@@ -36,9 +36,9 @@ class Game {
 
     init() {
         this.canvas = document.getElementById("canvas");
-        this.canvas_x = canvas.getBoundingClientRect().left;
-        this.canvas_y = canvas.getBoundingClientRect().top;
-        this.context = canvas.getContext("2d");
+        this.canvas_x = this.canvas.getBoundingClientRect().left;
+        this.canvas_y = this.canvas.getBoundingClientRect().top;
+        this.context = this.canvas.getContext("2d");
         this.input_event_subscription_manager = new Input_Event_Subscription_Manager();
         this.canvas.addEventListener("mousedown", onMouseDown);
         this.canvas.addEventListener("mousemove", onMouseMove);

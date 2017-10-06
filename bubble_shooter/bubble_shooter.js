@@ -192,9 +192,9 @@ const bubble_radius = 25;
 const bubble_speed = 3;
 const min_distance = bubble_speed / bubble_radius;
 const sqrt_of_3 = Math.sqrt(3);
-var max_col_0 = Math.floor(canvas.width / (2 * bubble_radius));
-var max_col_1 = Math.floor((canvas.width - bubble_radius) / (2 * bubble_radius));
-var max_row = Math.floor(canvas.height / (sqrt_of_3 * bubble_radius));
+var max_col_0;
+var max_col_1;
+var max_row;
 var upper_left_bubble_coord = new Coordinate(bubble_radius, bubble_radius);
 class Bubble extends Sprite {
     constructor(x, y, radius, r, g, b, a) {//Center coord, radius. color
