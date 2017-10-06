@@ -23,6 +23,8 @@ class BubbleShooter extends Game {
         this.moving_bubbles = new Array();
         this.shooter = new Shooter(Math.round((this.canvas.width - shooter_width) / 2), 0, shooter_width);
         this.shooter.coord.y = this.canvas.height - this.shooter.get_node_by_name("base").content.h;
+        for (var i = 0; i < 3; i++)
+            this.generate_row_of_fixed_bubbles(i);
     }
 
     update() {
@@ -53,6 +55,11 @@ class BubbleShooter extends Game {
         context.stroke();
     }
 
+    add_more_bubble() {
+        this.move_fixed_bubbles_down();
+        this.generate_row_of_fixed_bubbles(0);
+    }
+
     move_fixed_bubbles_down() {
         upper_left_bubble_coord.x = upper_left_bubble_coord.x == bubble_radius ? 2 * bubble_radius : bubble_radius;
         for (var i = 0; i < this.fixed_bubbles.length; i++) {
@@ -61,12 +68,15 @@ class BubbleShooter extends Game {
         }
     }
 
-    generate_row_of_fixed_bubbles() {
-        var max_col = upper_left_bubble_coord.x == bubble_radius ? max_col_0 : max_col_1;
-        for (var i = 0; i <= max_col; i++) {
-            var coord = Bubble.row_and_col_to_coord({ 'row': 0, 'col': i });
+    generate_row_of_fixed_bubbles(row) {
+        var max_col = ((upper_left_bubble_coord.x == bubble_radius && row % 2 == 0) || (upper_left_bubble_coord.x != bubble_radius && row % 2 != 0)) ? max_col_0 : max_col_1;
+        for (var i = 0; i < max_col; i++) {
+            var rc = { 'row': row, 'col': i };
+            var coord = Bubble.row_and_col_to_coord(rc);
             var color = bubble_colors[Utilities.getRandomInt(0, bubble_colors.length)];
-            this.fixed_bubbles.push(new Bubble(coord.x, coord.y, bubble_radius, color.r, color.g, color.b, 255));
+            var bubble = new Bubble(coord.x, coord.y, bubble_radius, color.r, color.g, color.b, 255);
+            bubble.fix_location(rc);
+            this.fixed_bubbles.push(bubble);
         }
     }
 }
@@ -100,7 +110,7 @@ class Bubble extends Sprite {
         if (!bubble instanceof Bubble)
             throw "Non-Bubble parameter error";
         var delta = bubble.coord.subtract(this.coord);
-        var distance = Math.sqrt(delta.dot(delta)) - this.radius - bubble.radius;
+        return Math.sqrt(delta.dot(delta)) - this.radius - bubble.radius;
     }
 
     fix_location(rc) {
@@ -116,11 +126,10 @@ class Bubble extends Sprite {
         var row = Math.floor((coord.y - upper_left_bubble_coord.y) / (sqrt_of_3 * bubble_radius));
         var col;
         if ((upper_left_bubble_coord.x == bubble_radius && row % 2 == 0) || (upper_left_bubble_coord.x != bubble_radius && row % 2 != 0)) {
-            col = Math.ceil((coord.x - upper_left_bubble_coord.x) / (2 * bubble_radius));
+            col = Math.round((coord.x - upper_left_bubble_coord.x) / (2 * bubble_radius));
             col = col < 0 ? 0 : (col > max_col_0 ? max_col_0 : col);
-        }
-        else {
-            col = Math.ceil((coord.x - bubble_radius - upper_left_bubble_coord.x) / (2 * bubble_radius));
+        } else {
+            col = Math.round((coord.x - bubble_radius - upper_left_bubble_coord.x) / (2 * bubble_radius));
             col = col < 0 ? 0 : (col > max_col_1 ? max_col_0 : col);
         }
         row = row < 0 ? 0 : (row > max_row ? max_row : row);
@@ -129,9 +138,9 @@ class Bubble extends Sprite {
 
     static row_and_col_to_coord(rc) {
         if ((upper_left_bubble_coord.x == bubble_radius && rc.row % 2 == 0) || (upper_left_bubble_coord.x != bubble_radius && rc.row % 2 != 0))
-            return upper_left_bubble_coord.add(new Coordinate(rc.col * 2 * bubble_radius, rc.row * sqrt_of_3 * bubble_radius));
+            return new Coordinate((rc.col * 2 + 1) * bubble_radius, (rc.row * sqrt_of_3 + 1) * bubble_radius);
         else
-            return upper_left_bubble_coord.add(new Coordinate((rc.col * 2 + 1) * bubble_radius, rc.row * sqrt_of_3 * bubble_radius));
+            return new Coordinate((rc.col * 2 + 2) * bubble_radius, (rc.row * sqrt_of_3 + 1) * bubble_radius);
     }
 
     static allowed_coord(coord) {
@@ -164,7 +173,7 @@ class Bubble extends Sprite {
             for (var i = 0; i < game.fixed_bubbles.length; i++) {
                 var distance = prediction.distance_to(game.fixed_bubbles[i]);
                 if (distance < min_distance) {
-                    this.fix_location(Bubble.row_and_col_to_coord(Bubble.row_and_col(prediction.coord)));
+                    this.fix_location(Bubble.row_and_col(this.coord));
                     var index;
                     for (var j = 0; j < game.moving_bubbles.length; j++)
                         if (game.moving_bubbles[j] === this) {
