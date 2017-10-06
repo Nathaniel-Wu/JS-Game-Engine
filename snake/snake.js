@@ -406,7 +406,7 @@ class Snake {
 
     stop_moving() {
         if (!this.stop)
-            alert("Your final score is " + scoreboard.score + ", refresh to restart the game.");;
+            alert("Your final score is " + scoreboard.score + ".");;
         this.stop = true;
     }
 
@@ -468,7 +468,8 @@ class Snake {
             }
             if (this.refresh_count % 600 == 0)
                 SpoiledFoodSprite.create_ramdom_food();
-        }
+        } else
+            game.restart();
     }
 
     draw() {
@@ -523,14 +524,22 @@ class SnakeGame extends Game {
         super(60);
     }
 
-    init() {
-        super.init();
+    load() {
         playgrid = new PlayGrid();
         foods = new Array();
         snake = new Snake();
         for (var i = 0; i < 10; i++)
             FoodSprite.create_ramdom_food();
         scoreboard = new ScoreBoard();
+    }
+
+    deload() {
+        playgrid.destroy();
+        for (var i = 0; i < foods.length; i++)
+            foods[i].destroy();
+        for (var i = 0; i < snake.snake_sprites.length; i++)
+            snake.snake_sprites[i].destroy();
+        scoreboard.destroy();
     }
 
     update() {
@@ -551,5 +560,4 @@ class SnakeGame extends Game {
 //---------------------------------------------- Run
 
 var game = new SnakeGame();
-game.init();
-game.start_loop();
+game.start();

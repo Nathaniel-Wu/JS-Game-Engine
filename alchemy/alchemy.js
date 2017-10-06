@@ -345,8 +345,7 @@ class Alchemy extends Game {
         super(60);
     }
 
-    init() {
-        super.init();
+    load() {
         playground_width = Math.round(canvas.width * 0.8);
         load_elements();
         load_rules();
@@ -415,5 +414,4 @@ function load_menu() {
 //---------------------------------------------- Run
 
 var game = new Alchemy();
-game.init();
-game.start_loop();
+game.start();
