@@ -14,7 +14,24 @@ class Game {
         this.context = null;
         this.input_event_subscription_manager = null;
         this.loop_handle = null;
-        this.inter_frame = 1 / framerate;
+        this.framerate = framerate;
+        this.inter_frame = 1000 / framerate;
+    }
+
+    start() {
+        this.init();
+        this.start_loop();
+    }
+
+    stop() {
+        this.stop_loop();
+        this.deload();
+    }
+
+    restart() {
+        this.stop();
+        this.load();
+        this.start_loop();
     }
 
     init() {
@@ -28,6 +45,7 @@ class Game {
         this.canvas.addEventListener("mouseup", onMouseUp);
         document.addEventListener("keydown", onKeyDown);
         this.switch_context();
+        this.load();
     }
 
     switch_context() {
@@ -38,9 +56,16 @@ class Game {
         input_event_subscription_manager = this.input_event_subscription_manager;
     }
 
+    load() { }
+
+    deload() {
+        for (var i = this.input_event_subscription_manager.subscribers.length - 1; i >= 0; i--)
+            this.input_event_subscription_manager.remove_subscriber(i);
+    }
+
     update() { }
 
-    draw() { }
+    draw() { canvas.width = canvas.width; }
 
     loop() {
         this.update();
@@ -58,6 +83,7 @@ class Game {
         if (!this.loop_handle)
             throw "Not in loop error";
         clearInterval(this.loop_handle);
+        this.loop_handle = null;
     }
 }
 
@@ -78,6 +104,22 @@ class Utilities {
         min = Math.ceil(min);
         max = Math.floor(max);
         return Math.floor(Math.random() * (max - min)) + min;
+    }
+
+    static merge_array_no_repetition(array_0, array_1) {
+        var result = new Array(); var length = array_0.length + array_1.length;
+        for (var i = 0; i < length; i++) {
+            var array_, i_; if (i < array_0.length) { array_ = array_0; i_ = i; } else { array_ = array_1; i_ = i - array_0.length; }
+            var repeated = false;
+            for (var j = 0; j < result.length; j++)
+                if (array_[i_] === result[j]) {
+                    repeated = true;
+                    break;
+                }
+            if (!repeated)
+                result.push(array_[i_]);
+        }
+        return result;
     }
 }
 
@@ -319,6 +361,10 @@ class GObject {
     }
 
     actual_draw() { }
+
+    destroy() {
+        GObject.rm_instance_ref(this.id);
+    }
 
     static get_instance(id) {
         return this.get_instance_array()[id];
@@ -911,6 +957,10 @@ class CollidableGObject extends GObject {
         //CollidableGObject.get_CollisionQuadtree().add_CGO(this);
     }
 
+    destroy() {
+        CollidableGObject.rm_CollidableGObject_instance_ref(this.CollidableGObject_id);
+    }
+
     move_prediction() {
         if (this.moveVect)
             return new CollidableGObject(this.coord.x + this.moveVect.x, this.coord.y + this.moveVect.y, this.w, this.h, this.root_bounding_volume);
@@ -1223,6 +1273,12 @@ class Sprite extends CollidableGObject {
             context.fillText(this.text.text, this.coord.x, this.coord.y + Math.round(this.h - (this.h - this.text.size) / 2), this.w);
             context.beginPath();
         }
+    }
+
+    destroy() {
+        if (this.decorator)
+            this.decorator.destroy();
+        super.destroy();
     }
 }
 
@@ -1820,6 +1876,15 @@ class SceneGraphNode extends GObject {
             for (var i = 0; i < this.children.length; i++)
                 this.children[i].draw();
     }
+
+    destroy() {
+        if (this.content)
+            this.content.destroy();
+        if (this.children)
+            for (var i = 0; i < this.children.length; i++)
+                this.children[i].destroy();
+        super.destroy();
+    }
 }
 
 //---------------------------------------------- Scene Graph
@@ -1857,5 +1922,10 @@ class SceneGraph extends GObject {
         if (!this.visble)
             return;
         this.root.draw();
+    }
+
+    destroy() {
+        this.root.destroy();
+        super.destroy();
     }
 }
