@@ -9,7 +9,7 @@ const bubble_colors = [
     { 'r': 0, 'g': 255, 'b': 255 },
     { 'r': 255, 'g': 0, 'b': 255 }
 ];
-const interval_between_bubble_generation = 1;
+const interval_between_bubble_generation = 20;
 class BubbleShooter extends Game {
     constructor() {
         super(60);
