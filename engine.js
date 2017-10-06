@@ -146,9 +146,7 @@ class Vector {
 //---------------------------------------------- Coordinate
 
 class Coordinate extends Vector {
-    constructor(x, y) {/*
-        if (!Utilities.isInteger(x) || !Utilities.isInteger(y))
-            throw "Non-integer parameter";*/
+    constructor(x, y) {
         super(x, y);
     }
 
@@ -171,7 +169,7 @@ class Coordinate extends Vector {
     }
 
     add(v) {
-        if (v instanceof Coordinate || (v instanceof Vector /*&& Utilities.isInteger(v.x) && Utilities.isInteger(v.y)*/)) {
+        if (v instanceof Coordinate || (v instanceof Vector)) {
             var res = super.add(v);
             return new Coordinate(res.x, res.y);
         }
@@ -279,8 +277,8 @@ class GObject {
     constructor(x, y, w, h) {
         if (!canvas)
             throw "Canvas existence error";
-        if (!Utilities.isInteger(x) || !Utilities.isInteger(y) || !Utilities.isInteger(w) || !Utilities.isInteger(h))
-            throw "Non-integer parameter error";
+        if (typeof x != 'number' || typeof y != 'number' || typeof w != 'number' || typeof h != 'number')
+            throw "Non-number parameter error";
         this.id = GObject.get_id_generator().get_id();
         GObject.get_instance_array()[this.id] = this;
         this.coord = new Coordinate(x, y);
@@ -348,8 +346,8 @@ class GObject {
 
 class BoundingVolume {
     constructor(x_offset, y_offset, w, h) {
-        if (!Utilities.isInteger(x_offset) || !Utilities.isInteger(y_offset) || !Utilities.isInteger(w) || !Utilities.isInteger(h))
-            throw "Non-integer parameter error";
+        if (typeof x_offset != 'number' || typeof y_offset != 'number' || typeof w != 'number' || typeof h != 'number')
+            throw "Non-number parameter error";
         this.coord_offset = new Coordinate(x_offset, y_offset);
         this.w = w;
         this.h = h;
@@ -556,8 +554,8 @@ class BoundingVolume {
 
 class CircleBoundingVolume extends BoundingVolume {
     constructor(x_offset, y_offset, radius) {
-        if (!Utilities.isInteger(x_offset) || !Utilities.isInteger(y_offset) || !Utilities.isInteger(radius))
-            throw "Non-integer parameter error";
+        if (typeof x_offset != 'number' || typeof y_offset != 'number' || typeof radius != 'number')
+            throw "Non-number parameter error";
         super(x_offset, y_offset, 2 * radius, 2 * radius);
         this.coord_offset = new Coordinate(x_offset, y_offset);
         this.radius = radius;
