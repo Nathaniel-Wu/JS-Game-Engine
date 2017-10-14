@@ -10,6 +10,7 @@ const bubble_colors = [
     { 'r': 255, 'g': 0, 'b': 255 }
 ];
 const interval_between_bubble_generation = 20;
+var bubble_pool;
 class BubbleShooter extends Game {
     constructor() {
         super(60);
@@ -22,6 +23,9 @@ class BubbleShooter extends Game {
     }
 
     load() {
+        if (!bubble_pool)
+            bubble_pool = new BubbleManager();
+        bubble_pool.init();
         max_col_0 = Math.floor(canvas.width / (2 * bubble_radius));
         max_col_1 = Math.floor((canvas.width - bubble_radius) / (2 * bubble_radius));
         max_row = Math.floor(canvas.height / (sqrt_of_3 * bubble_radius));
@@ -38,12 +42,15 @@ class BubbleShooter extends Game {
 
     deload() {
         super.deload();
-        for (var i = this.fixed_bubbles.length - 1; i >= 0; i--)
-            game.fixed_bubbles.splice(i, 1)[0].destroy();
+        // for (var i = this.fixed_bubbles.length - 1; i >= 0; i--)
+        //     this.fixed_bubbles.splice(i, 1)[0].destroy();
+        // this.fixed_bubbles = null;
+        // for (var i = this.moving_bubbles.length - 1; i >= 0; i--)
+        //     this.moving_bubbles.splice(i, 1)[0].destroy();
+        // this.moving_bubbles = null;
         this.fixed_bubbles = null;
-        for (var i = this.moving_bubbles.length - 1; i >= 0; i--)
-            game.moving_bubbles.splice(i, 1)[0].destroy();
         this.moving_bubbles = null;
+        bubble_pool.destroy();
         this.shooter.destroy();
         this.shooter = null;
         this.current_max_row = null;
@@ -58,6 +65,7 @@ class BubbleShooter extends Game {
         if (this.moving_bubbles)
             for (var i = 0; i < this.moving_bubbles.length; i++)
                 this.moving_bubbles[i].update();
+        bubble_pool.update();
         if (this.shooter)
             this.shooter.update();
         if (this.previous_loop > this.framerate * interval_between_bubble_generation) {
@@ -100,7 +108,7 @@ class BubbleShooter extends Game {
         if (this.current_max_row > this.max_allowed_row + 1) {
             this.stop();
             alert("Game Over!");
-            this.load();
+            this.load()
             this.start_loop();
         } else
             this.current_max_row = 0;
@@ -158,7 +166,8 @@ class BubbleShooter extends Game {
             var rc = { 'row': row, 'col': i };
             var coord = Bubble.row_and_col_to_coord(rc);
             var color = bubble_colors[Utilities.getRandomInt(0, bubble_colors.length)];
-            var bubble = new Bubble(coord.x, coord.y, bubble_radius, color.r, color.g, color.b, 255);
+            // var bubble = new Bubble(coord.x, coord.y, bubble_radius, color.r, color.g, color.b, 255);
+            var bubble = bubble_pool.utilize_bubble(coord.x, coord.y, 0, 0, color.r, color.g, color.b, 255);
             bubble.fix_location(rc);
             this.fixed_bubbles.push(bubble);
         }
@@ -196,9 +205,9 @@ var max_col_0;
 var max_col_1;
 var max_row;
 var upper_left_bubble_coord = new Coordinate(bubble_radius, bubble_radius);
-class Bubble extends Sprite {
+class Bubble extends Particle {
     constructor(x, y, radius, r, g, b, a) {//Center coord, radius. color
-        super(x - radius, y - radius, 2 * radius, 2 * radius);
+        super(x - radius, y - radius, 2 * radius, 2 * radius, bubble_pool);
         this.coord.x += radius;
         this.coord.y += radius;
         this.radius = radius;
@@ -209,6 +218,12 @@ class Bubble extends Sprite {
         this.assign_color(r, g, b, a);
         this.row = null;
         this.col = null;
+    }
+
+    recyclable() {
+        if (0 > this.coord.x + this.radius || this.coord.x - this.radius > canvas.width || 0 > this.coord.y + this.radius || this.coord.y - this.radius > canvas.height)
+            return true;
+        return false;
     }
 
     distance_to(bubble) {
@@ -284,10 +299,12 @@ class Bubble extends Sprite {
                     if (Utilities.string_compare(this.color, game.fixed_bubbles[i].color))
                         same_color_surrounding_bubbles.push(game.fixed_bubbles[i]);
         if (force && game.stop_keeping_fixed_bubble(this))
-            this.destroy();
+            // this.destroy();
+            this.recycle = true;
         if (same_color_surrounding_bubbles.length > 0) {
             if (!force)
-                game.stop_keeping_fixed_bubble(this).destroy();
+                // game.stop_keeping_fixed_bubble(this).destroy();
+                game.stop_keeping_fixed_bubble(this).recycle = true;
             for (var i = 0; i < same_color_surrounding_bubbles.length; i++)
                 same_color_surrounding_bubbles[i].remove(true);
         }
@@ -353,6 +370,34 @@ class Bubble extends Sprite {
     }
 }
 
+//---------------------------------------------- Bubble Manager
+
+class BubbleManager extends ParticleManager {
+    constructor() {
+        super(500, 2 * bubble_radius, 2 * bubble_radius);
+    }
+
+    init() {
+        for (var i = 0; i < this.total; i++) {
+            var b = new Bubble(0, 0, bubble_radius, 0, 0, 0, 0);
+            b.visble = false;
+            b.collidable = false;
+            b.recycle = true;
+            this.passive_particles.push(b);
+        }
+    }
+
+    utilize_bubble(x, y, v_x, v_y, r, g, b, a) {
+        if (this.passive_particles.length == 0)
+            throw "Particle pool dry out error";
+        var bubble = this.passive_particles.splice(0, 1)[0];
+        bubble.assign_properties(x, y, v_x, v_y);
+        bubble.assign_color(r, g, b, a);
+        this.active_particles.push(bubble);
+        return bubble;
+    }
+}
+
 //---------------------------------------------- Shooter
 
 const shooter_base_color = { 'r': 191, 'g': 191, 'b': 191, 'a': 255 };
@@ -393,24 +438,44 @@ class ShooterBarrel extends Sprite {
     }
 }
 
+class SceneGraphNode_ extends SceneGraphNode {
+    destroy() {
+        if (this.content && (!this.content instanceof Bubble)) {
+            this.content.destroy();
+            this.content = null;
+        }
+        if (this.children) {
+            for (var i = this.children.length - 1; i >= 0; i--) {
+                var c=this.children.splice(i, 1)[0];
+                c.destroy();
+            }
+            this.children = null;
+        }
+        super.destroy();
+    }
+}
+
 class Shooter extends SceneGraph {
     constructor(x, y, w) {//Upper left corner of base, width of base
         super();
+        this.root.destroy();
+        this.root = new SceneGraphNode_();
         this.coord = new Coordinate(x, y);
         this.w = w;
         this.movable = false;
         this.root.assign_name("shooter");
-        var base = new SceneGraphNode();
+        var base = new SceneGraphNode_();
         base.attach_content(new ShooterBase(w, Math.round(0.618 * w)));
         base.assign_name("base");
         this.root.attach_child(base);
-        var barrel = new SceneGraphNode();
+        var barrel = new SceneGraphNode_();
         barrel.attach_content(new ShooterBarrel(Math.round(0.382 * w), Math.round(1.1 * w)));
         barrel.assign_name("barrel");
         this.root.attach_child(barrel);
-        var bubble = new SceneGraphNode();
+        var bubble = new SceneGraphNode_();
         var color = bubble_colors[Utilities.getRandomInt(0, bubble_colors.length)];
-        bubble.attach_content(new Bubble(0, 0, bubble_radius, color.r, color.g, color.b, 255));
+        // bubble.attach_content(new Bubble(0, 0, bubble_radius, color.r, color.g, color.b, 255));
+        bubble.attach_content(bubble_pool.utilize_bubble(0, 0, 0, 0, color.r, color.g, color.b, 255));
         bubble.assign_name("bubble");
         this.root.attach_child(bubble);
         this.si = game.input_event_subscription_manager.add_subscriber(this);
@@ -448,7 +513,8 @@ class Shooter extends SceneGraph {
         coord.x = Math.round(coord.x + direction.x);
         coord.y = Math.round(coord.y + direction.y);
         var color = bubble_colors[Utilities.getRandomInt(0, bubble_colors.length)];
-        this.get_node_by_name("bubble").content = new Bubble(0, 0, bubble_radius, color.r, color.g, color.b, 255);
+        // this.get_node_by_name("bubble").content = new Bubble(0, 0, bubble_radius, color.r, color.g, color.b, 255);
+        this.get_node_by_name("bubble").content = bubble_pool.utilize_bubble(0, 0, 0, 0, color.r, color.g, color.b, 255);
         bubble.coord = coord;
         bubble.direction = direction;
         game.moving_bubbles.push(bubble);
