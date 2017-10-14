@@ -87,6 +87,12 @@ class Game {
     }
 }
 
+//---------------------------------------------- UI
+
+class UI {
+    
+}
+
 //---------------------------------------------- Utilities
 
 class Utilities {
@@ -306,7 +312,7 @@ class IDGenerator {
     recycle_id(id) {
         var id_index = this.get_id_index(id);
         if (id_index == -1)
-            throw "Invalid Texture ID error";
+            throw "Invalid ID error";
         this.assigned_ids.splice(id_index, 1);
         this.max++;
         this.id_pool[this.max] = id;
@@ -1093,9 +1099,11 @@ class CollidableGObject extends GObject {
 
     static rm_CollidableGObject_instance_ref(CollidableGObject_id) {
         var array = this.get_CollidableGObject_instance_array();
-        super.rm_instance_ref(array[CollidableGObject_id].id);
-        array[CollidableGObject_id] = null;
-        this.get_CollidableGObject_id_generator().recycle_id(CollidableGObject_id);
+        try {
+            super.rm_instance_ref(array[CollidableGObject_id].id);
+            array[CollidableGObject_id] = null;
+            this.get_CollidableGObject_id_generator().recycle_id(CollidableGObject_id);
+        } catch (e) { console.log(e); }
     }
 
     static get_CollisionQuadtree() {
@@ -1116,7 +1124,7 @@ class CollidableGObject extends GObject {
 
     static get_CollidableGObject_id_generator() {
         if (!this.CollidableGObject_id_generator)
-            this.CollidableGObject_id_generator = new IDGenerator(1000);
+            this.CollidableGObject_id_generator = new IDGenerator(10000);
         return this.CollidableGObject_id_generator;
     }
 }
@@ -1878,11 +1886,17 @@ class SceneGraphNode extends GObject {
     }
 
     destroy() {
-        if (this.content)
+        if (this.content) {
             this.content.destroy();
-        if (this.children)
-            for (var i = 0; i < this.children.length; i++)
-                this.children[i].destroy();
+            this.content = null;
+        }
+        if (this.children) {
+            for (var i = this.children.length - 1; i >= 0; i--) {
+                var c = this.children.splice(i, 1)[0];
+                c.destroy();
+            }
+            this.children = null;
+        }
         super.destroy();
     }
 }
@@ -1927,5 +1941,113 @@ class SceneGraph extends GObject {
     destroy() {
         this.root.destroy();
         super.destroy();
+    }
+}
+
+//---------------------------------------------- Particel System
+
+class Particle extends Sprite {
+    constructor(x, y, v_x, v_y, pm) {
+        if (!pm instanceof ParticleManager)
+            throw "Non-ParticleManager parameter error";
+        super(x, y, pm.pw, pm.ph);
+        this.speed = new Vector(v_x, v_y);
+        this.pm = pm;
+        this.recycle = false;
+    }
+
+    update() {
+        this.move(this.speed);
+        super.update();
+        if (this.recyclable()) {
+            this.visble = false;
+            this.collidable = false;
+            this.recycle = true;
+        }
+    }
+
+    recyclable() {
+        if (-this.w > this.coord.x || this.coord.x > canvas.width || -this.h > this.coord.y || this.coord.y > canvas.height)
+            return true;
+        return false;
+    }
+
+    assign_properties(x, y, v_x, v_y) {
+        this.coord.x = x;
+        this.coord.y = y;
+        this.speed.x = v_x;
+        this.speed.y = v_y;
+        this.visble = true;
+        this.collidable = true;
+        this.recycle = false;
+    }
+}
+
+class ParticleManager {
+    constructor(total, pw, ph) {
+        if (typeof total != 'number' || typeof pw != 'number' || typeof ph != 'number')
+            throw "Non-ParticleManager parameter error";
+        this.total = total;
+        this.pw = pw;
+        this.ph = ph;
+        this.passive_particles = new Array();
+        this.active_particles = new Array();
+    }
+
+    init() {
+        for (var i = 0; i < this.total; i++) {
+            var p = new Particle(0, 0, 0, 0, this);
+            p.visble = false;
+            p.collidable = false;
+            p.recycle = true;
+            this.passive_particles.push(p);
+        }
+    }
+
+    recycle() {
+        for (var i = this.active_particles.length - 1; i >= 0; i--) {
+            var p = this.active_particles.splice(i, 1)[0];
+            p.visble = false;
+            p.collidable = false;
+            p.recycle = true;
+            this.passive_particles.push(p);
+        }
+    }
+
+    destroy() {
+        for (var i = this.active_particles.length - 1; i >= 0; i--) {
+            var p = this.active_particles.splice(i, 1)[0];
+            p.destroy();
+        }
+        for (var i = this.passive_particles.length - 1; i >= 0; i--) {
+            var p = this.passive_particles.splice(i, 1)[0];
+            p.destroy();
+        }
+    }
+
+    utilize_particle(x, y, v_x, v_y) {
+        if (this.passive_particles.length < 0)
+            throw "Particle pool dry out error";
+        var p = this.passive_particles.splice(0, 1)[0];
+        p.assign_properties(x, y, v_x, v_y);
+        this.active_particles.push(p);
+        return p;
+    }
+
+    update() {
+        for (var i = this.active_particles.length - 1; i >= 0; i--) {
+            if (this.active_particles[i].recycle) {
+                this.passive_particles.push(this.active_particles.splice(i, 1)[0]);
+                continue;
+            }
+            this.active_particles[i].update();
+            if (this.active_particles[i].recycle)
+                this.passive_particles.push(this.active_particles.splice(i, 1)[0]);
+        }
+    }
+
+    draw() {
+        for (var i = this.active_particles.length - 1; i >= 0; i--)
+            this.active_particles[i].draw();
     }
 }
