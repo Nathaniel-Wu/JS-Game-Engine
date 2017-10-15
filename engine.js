@@ -90,7 +90,42 @@ class Game {
 //---------------------------------------------- UI
 
 class UI {
-    
+    constructor(game) {
+        if (!game instanceof Game)
+            throw "Non-Game parameter error";
+        this.game = game;
+    }
+
+    update() { }
+    draw() { }
+}
+
+class UIStack {
+    constructor(game) {
+        if (!game instanceof Game)
+            throw "Non-Game parameter error";
+        this.game = game;
+        this.stack = new Array();
+    }
+
+    push(ui) {
+        if (!ui instanceof UI)
+            throw "Non-UI parameter error";
+        this.stack.push(ui);
+    }
+
+    pop() {
+        return this.stack.splice(this.stack.length - 1, 1)[0];
+    }
+
+    update() {
+        for (var i = 0; i < this.stack.length; i++)
+            this.stack[i].update();
+    }
+
+    draw() {
+        this.stack[this.stack.length - 1].draw();
+    }
 }
 
 //---------------------------------------------- Utilities
