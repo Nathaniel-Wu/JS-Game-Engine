@@ -20,6 +20,8 @@ class BubbleShooter extends Game {
         this.current_max_row = null;
         this.max_allowed_row = null;
         this.previous_loop = null;
+        this.score = 0;
+        this.ui_stack = null;
     }
 
     load() {
@@ -38,6 +40,8 @@ class BubbleShooter extends Game {
         for (var i = 0; i < 3; i++)
             this.generate_row_of_fixed_bubbles(i);
         this.previous_loop = 0;
+        this.ui_stack = new UIStack(this);
+        this.ui_stack.push(new ScoreBoard(this, 0, canvas.height - 62, 100, 62));
     }
 
     deload() {
@@ -56,6 +60,7 @@ class BubbleShooter extends Game {
         this.current_max_row = null;
         this.max_allowed_row = null;
         this.previous_loop = null;
+        this.ui_stack = null;
     }
 
     update() {
@@ -73,6 +78,7 @@ class BubbleShooter extends Game {
             this.generate_row_of_fixed_bubbles(0);
             this.previous_loop = 0;
         }
+        this.ui_stack.update();
     }
 
     draw() {
@@ -100,6 +106,7 @@ class BubbleShooter extends Game {
         if (this.moving_bubbles)
             for (var i = 0; i < this.moving_bubbles.length; i++)
                 this.moving_bubbles[i].draw();
+        this.ui_stack.draw();
     }
 
     loop() {
@@ -192,6 +199,35 @@ class BubbleShooter extends Game {
             if (this.fixed_bubbles[i].row == rc.row && this.fixed_bubbles[i].col == rc.col)
                 return i;
         return null;
+    }
+}
+
+//---------------------------------------------- UI
+
+class ScoreBoard extends UI {
+    constructor(game, x, y, w, h) {
+        if (!game instanceof BubbleShooter)
+            throw "Non-BubbleShooter parameter error";
+        super(game);
+        this.score = this.game.score;
+        this.coord = new Coordinate(x, y);
+        this.w = w;
+        this.h = h;
+        this.text = new Text_specs("Score: " + this.score, 30, "Helvetica");
+    }
+
+    update() {
+        if (this.score != this.game.score) {
+            this.score = this.game.score;
+            this.text = new Text_specs("Score: " + this.score, 30, "Helvetica");
+        }
+    }
+
+    draw() {
+        context.font = this.text.font;
+        context.fillStyle = 'black';
+        context.fillText(this.text.text, this.coord.x, this.coord.y + Math.round(this.h - (this.h - this.text.size) / 2), this.w);
+        context.beginPath();
     }
 }
 
@@ -298,9 +334,11 @@ class Bubble extends Particle {
                 if (game.fixed_bubbles[i].row == surrounding_rcs[j].row && game.fixed_bubbles[i].col == surrounding_rcs[j].col)
                     if (Utilities.string_compare(this.color, game.fixed_bubbles[i].color))
                         same_color_surrounding_bubbles.push(game.fixed_bubbles[i]);
-        if (force && game.stop_keeping_fixed_bubble(this))
+        if (force && game.stop_keeping_fixed_bubble(this)) {
             // this.destroy();
             this.recycle = true;
+            game.score++;
+        }
         if (same_color_surrounding_bubbles.length > 0) {
             if (!force)
                 // game.stop_keeping_fixed_bubble(this).destroy();
@@ -374,7 +412,7 @@ class Bubble extends Particle {
 
 class BubbleManager extends ParticleManager {
     constructor() {
-        super(500, 2 * bubble_radius, 2 * bubble_radius);
+        super(1000, 2 * bubble_radius, 2 * bubble_radius);
     }
 
     init() {
@@ -446,7 +484,7 @@ class SceneGraphNode_ extends SceneGraphNode {
         }
         if (this.children) {
             for (var i = this.children.length - 1; i >= 0; i--) {
-                var c=this.children.splice(i, 1)[0];
+                var c = this.children.splice(i, 1)[0];
                 c.destroy();
             }
             this.children = null;
