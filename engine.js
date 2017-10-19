@@ -90,14 +90,27 @@ class Game {
 //---------------------------------------------- UI
 
 class UI {
-    constructor(game) {
+    constructor(game, alpha, block) {
         if (!game instanceof Game)
             throw "Non-Game parameter error";
+        if (typeof alpha !== 'number')
+            throw "Non-number alpha parameter error";
+        if (0.0 > alpha || alpha > 1.0)
+            throw "Alpha parameter range error";
+        if (typeof block !== 'boolean')
+            throw "Non-boolean parameter error";
         this.game = game;
+        this.alpha = alpha;
+        this.block = block;
     }
 
     update() { }
-    draw() { }
+    draw() {
+        context.globalAlpha = this.alpha;
+        this.actual_draw();
+        context.globalAlpha = 1.0;
+    }
+    actual_draw() { }
 }
 
 class UIStack {
@@ -124,7 +137,10 @@ class UIStack {
     }
 
     draw() {
-        this.stack[this.stack.length - 1].draw();
+        for (var i = this.stack.length - 1; i >= 0; i--) {
+            this.stack[i].draw();
+            if (this.stack[i].block) break;
+        }
     }
 }
 

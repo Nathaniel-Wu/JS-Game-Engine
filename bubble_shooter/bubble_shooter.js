@@ -208,7 +208,7 @@ class ScoreBoard extends UI {
     constructor(game, x, y, w, h) {
         if (!game instanceof BubbleShooter)
             throw "Non-BubbleShooter parameter error";
-        super(game);
+        super(game, 1.0, false);
         this.score = this.game.score;
         this.coord = new Coordinate(x, y);
         this.w = w;
@@ -223,7 +223,7 @@ class ScoreBoard extends UI {
         }
     }
 
-    draw() {
+    actual_draw() {
         context.font = this.text.font;
         context.fillStyle = 'black';
         context.fillText(this.text.text, this.coord.x, this.coord.y + Math.round(this.h - (this.h - this.text.size) / 2), this.w);
