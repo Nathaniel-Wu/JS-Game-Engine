@@ -401,6 +401,8 @@ class GObject {
         this.movable = true;
         this.visble = true;
         this.moveVect = null;
+        this.rotate_offset_coord = null;
+        this.rotate_rad = null;
     }
 
     move(vect) {
@@ -427,9 +429,39 @@ class GObject {
         }
     }
 
+    rotate(offset_coord, rad) {
+        if (offset_coord) {
+            if (!offset_coord instanceof Coordinate)
+                throw "Non-Coordinate parameter error";
+            this.rotate_offset_coord = offset_coord;
+        } else
+            this.rotate_offset_coord = null;
+        if (typeof rad !== 'number')
+            throw "Non-number parameter";
+        this.rotate_rad = rad;
+    }
+
+    rotate_cancel() {
+        this.rotate_rad = null;
+        this.rotate_offset_coord = null;
+    }
+
     draw() {
-        if (this.visble)
-            this.actual_draw();
+        if (this.visble) {
+            if (this.rotate_rad != null) {
+                context.save();
+                context.translate(this.coord.x, this.coord.y);
+                if (this.rotate_offset_coord)
+                    context.translate(this.rotate_offset_coord.x, this.rotate_offset_coord.y);
+                context.rotate(this.rotate_rad);
+                context.translate(-this.coord.x, -this.coord.y);
+                if (this.rotate_offset_coord)
+                    context.translate(-this.rotate_offset_coord.x, -this.rotate_offset_coord.y);
+                this.actual_draw();
+                context.restore();
+            } else
+                this.actual_draw();
+        }
     }
 
     actual_draw() { }
@@ -1088,47 +1120,51 @@ class CollidableGObject extends GObject {
     }
 
     static CGO_update_hard_collision() {
-        var ids = get_CollidableGObject_instance_id_array();
+        var collision_quad_tree = new CollisionQuadtree(canvas.width, canvas.height);
+        var ids = this.get_CollidableGObject_instance_id_array();
         var hard_instances = new Array();
-        var hard_nexts = new Array();
-        var hard_collision_ray_collections = new Array();
         var actual_length = ids.length;
         for (var i = 0; i < actual_length; i++) {
             var instance_i = this.get_CollidableGObject_instance(ids[i]);
             if (instance_i.collidable && instance_i.CP == CPType.HARD) {
+                var next_i = instance_i.move_prediction();
+                next_i.instance_index = hard_instances.length;
+                collision_quad_tree.add_CGO(next_i);
                 hard_instances.push(instance_i);
-                hard_nexts.push(instance_i.move_prediction());
-                hard_collision_ray_collections.push(new Array());
             }
         }
-        for (var i = 0; i < hard_instances.length; i++) {
-            for (var j = i + 1; j < hard_instances.length; j++) {
-                var collision_j_into_i = hard_nexts[i].collides(hard_instances[j]);
-                var collision_i_into_j = hard_nexts[j].collides(hard_instances[i]);
-                if (collision_j_into_i)
-                    collision_collections[j].push(collision_j_into_i);
-                if (collision_i_into_j)
-                    collision_collections[i].push(collision_i_into_j);
+        var nodes = collision_quad_tree.traverse_and_get_nodes();
+        if (nodes) {
+            var checked_pairs = new Array();
+            var is_checked = function (instance_index_0, instance_index_1) {
+                for (var i = 0; i < checked_pairs.length; i++)
+                    if ((checked_pairs[i][0] == instance_index_0 && checked_pairs[i][1] == instance_index_1) || (checked_pairs[i][0] == instance_index_1 && checked_pairs[i][1] == instance_index_0))
+                        return true;
+                return false;
             }
-            CollidableGObject.rm_CollidableGObject_instance_ref(hard_nexts[i].CollidableGObject_id);
-        }
-        for (var i = 0; i < hard_instances.length; i++) {
-            var collisions = hard_collision_ray_collections[i];
-            var mean_intersection_x;
-            var mean_intersection_y;
-            var mean_reflection_x;
-            var mean_reflection_y;
-            for (var j = 0; j < collisions.length; j++) {
-                mean_intersection_x += collisions[j].origin.x;
-                mean_intersection_y += collisions[j].origin.y;
-                mean_reflection_x += collisions[j].direction.x;
-                mean_reflection_y += collisions[j].direction.y;
+            for (var i = 0; i < nodes.length; i++) {
+                if (nodes[i].isLeaf()) {
+                    var hard_nexts;
+                    if (nodes[i].parent)
+                        hard_nexts = CollisionQuadtree.traverse_and_get_values_(nodes[i].parent);
+                    else
+                        hard_nexts = nodes[i].values;
+                    for (var j = 0; j < hard_nexts.length; j++) {
+                        var instance_index_j = hard_nexts[j].instance_index;
+                        for (var k = j + 1; k < hard_nexts.length; k++) {
+                            var instance_index_k = hard_nexts[k].instance_index;
+                            if (!is_checked(instance_index_j, instance_index_k)) {
+                                if (hard_nexts[j].collides(hard_nexts[k]))
+                                    hard_instances[instance_index_j].resolve(new Collision(null, hard_instances[instance_index_k], CPType.PASSIVE));
+                            }
+                            checked_pairs.push({ instance_index_j, instance_index_k });
+                        }
+                    }
+                }
             }
-            mean_intersection_x = Math.round(mean_intersection_x / collisions.length);
-            mean_intersection_y = Math.round(mean_intersection_y / collisions.length);
-            mean_reflection_x /= collisions.length;
-            mean_reflection_y /= collisions.length;
-            hard_instances[i].resolve(new Collision(new Ray(new Coordinate(mean_intersection_x, mean_intersection_y), new Vector(mean_reflection_x, mean_reflection_y)), null, CPType.HARD));
+            var nexts = collision_quad_tree.traverse_and_get_values();
+            for (var i = nexts.length - 1; i >= 0; i--)
+                CollidableGObject.rm_CollidableGObject_instance_ref(nexts.splice(i, 1)[0].CollidableGObject_id);
         }
     }
 
@@ -1200,11 +1236,7 @@ class CollidableGObject extends GObject {
         }*/
     }
 
-    static CGO_update() {/*
-        this.collision_quadtree = new CollisionQuadtree(canvas.width, canvas.height);
-        var ids = this.get_CollidableGObject_instance_id_array();
-        for (var i = 0; i < ids.length; i++)
-            this.collision_quadtree.add_CGO(this.get_CollidableGObject_instance(ids[i]));*/
+    static CGO_update() {
         // this.CGO_update_hard_collision();
         this.CGO_update_passive_collision();
     }
@@ -1397,6 +1429,18 @@ class Sprite extends CollidableGObject {
         if (this.decorator)
             this.decorator.destroy();
         super.destroy();
+    }
+
+    rotate(offset_coord, rad) {
+        super.rotate(offset_coord, rad);
+        if (this.decorator)
+            this.decorator.rotate(this.coord.subtract(this.decorator.coord).add(offset_coord), rad);
+    }
+
+    rotate_cancel() {
+        super.rotate_cancel();
+        if (this.decorator)
+            this.decorator.rotate_cancel();
     }
 }
 
@@ -1809,6 +1853,20 @@ function onKeyDown(e) {
         case 32:
             input_event_subscription_manager.publish_input_event(new Input_Event(IEType.SPACE, null));
             break;
+    }
+}
+
+//---------------------------------------------- Input Agent
+
+class InputAgent {
+    constructor(iesm) {
+        if (!iesm instanceof Input_Event_Subscription_Manager)
+            throw "Non-Input_Event_Subscription_Manager parameter error";
+        this.iesm = iesm;
+    }
+
+    input(type, coord) {
+        this.iesm.publish_input_event(new Input_Event(type, coord));
     }
 }
 
