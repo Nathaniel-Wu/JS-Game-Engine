@@ -78,7 +78,6 @@ class FoodSprite extends PlaySprite {
         s.add_tail();
         CollidableGObject.rm_CollidableGObject_instance_ref(this.CollidableGObject_id);
         FoodSprite.create_ramdom_food();
-        scoreboard.score++;
     }
 
     assign_random_index() {
@@ -98,11 +97,13 @@ class FoodSprite extends PlaySprite {
             if (!foods)
                 break;
             var repeat = false;
-            for (var i = 0; i < snake.snake_sprites.length; i++)
-                if (((row == snake.snake_sprites[i].row + snake.snake_sprites[i].delta_row) && (col == snake.snake_sprites[i].col + snake.snake_sprites[i].delta_col))) {
-                    repeat = true;
-                    break;
-                }
+            for (var j = 0; j < snakes.length; j++) {
+                for (var i = 0; i < snakes[j].snake_sprites.length; i++)
+                    if (((row == snakes[j].snake_sprites[i].row + snakes[j].snake_sprites[i].delta_row) && (col == snakes[j].snake_sprites[i].col + snakes[j].snake_sprites[i].delta_col))) {
+                        repeat = true;
+                        break;
+                    }
+            }
             if (repeat)
                 continue;
             for (var i = 0; i < foods.length; i++)
@@ -113,7 +114,7 @@ class FoodSprite extends PlaySprite {
             if (!repeat)
                 break;
         } while (true);
-        return { row: row, col: col };
+        return { 'row': row, 'col': col };
     }
 
     static create_ramdom_food() {
@@ -200,21 +201,20 @@ class SpoiledFoodSprite extends FoodSprite {
 
 //---------------------------------------------- Snake Sprite
 
-var snake;
-const snake_color = { r: 255, g: 255, b: 0, a: 255 };
 const DIR = { U: 0, D: 1, L: 2, R: 3 };
 class SnakeSprite extends PlaySprite {
-    constructor(row, col, snake) {
+    constructor(row, col, snake_instance, color) {
         super(row, col);
-        this.snake = snake;
+        this.snake = snake_instance;
+        this.color = color;
     }
 
     move_prediction() {
         if (this.moveVect) {
             var index = this.grid.coord_to_index(new Coordinate(this.coord.x + this.moveVect.x, this.coord.y + this.moveVect.y));
-            return new SnakeSprite(index.row, index.col, this.grid);
+            return new SnakeSprite(index.row, index.col, this.grid, null);
         }
-        return new SnakeSprite(this.row, this.col, this.grid);
+        return new SnakeSprite(this.row, this.col, this.grid, null);
     }
 
     cancel_moving() {
@@ -241,6 +241,7 @@ class SnakeSprite extends PlaySprite {
                 if (this.row + this.delta_row == collision.into.row && this.col + this.delta_col == collision.into.col)
                     if (!this.snake.already_eat) {
                         collision.into.eat_by(this.snake);
+                        this.snake.scoreboard.score++;
                         this.snake.already_eat = true;
                     }
     }
@@ -270,19 +271,20 @@ class SnakeSprite extends PlaySprite {
 
     actual_draw() {
         var imagedata = context.createImageData(this.w, this.h);
-        if (this.is_snake_head()) {
-            context.fillStyle = "rgba(63,63,0," + snake_color.a + ")";
-            context.fillRect(this.coord.x, this.coord.y, this.w, this.h);
+        if (this.color) {
+            if (this.is_snake_head()) {
+                context.fillStyle = "rgba(63,63,0," + this.color.a + ")";
+                context.fillRect(this.coord.x, this.coord.y, this.w, this.h);
+            } else {
+                context.fillStyle = "rgba(" + this.color.r + "," + this.color.g + "," + this.color.b + "," + this.color.a + ")";
+                context.fillRect(this.coord.x, this.coord.y, this.w, this.h);
+            }
+            context.beginPath();
+            context.lineWidth = "1";
+            context.strokeStyle = "black";
+            context.rect(this.coord.x, this.coord.y, this.w, this.h);
+            context.stroke();
         }
-        else {
-            context.fillStyle = "rgba(" + snake_color.r + "," + snake_color.g + "," + snake_color.b + "," + snake_color.a + ")";
-            context.fillRect(this.coord.x, this.coord.y, this.w, this.h);
-        }
-        context.beginPath();
-        context.lineWidth = "1";
-        context.strokeStyle = "black";
-        context.rect(this.coord.x, this.coord.y, this.w, this.h);
-        context.stroke();
     }
 }
 
@@ -333,30 +335,32 @@ class SPArray {
     }
 }
 
+var snakes = new Array();
+const snake_color = { 'r': 255, 'g': 255, 'b': 0, 'a': 255 };
 class Snake {
-    constructor() {
+    constructor(name) {
         this.snake_sprites = new Array();
         this.segmentations = new SPArray();
         this.directions = new Array();
-        this.snake_sprites.push(new SnakeSprite(0, 4, this));
-        this.snake_sprites.push(new SnakeSprite(0, 3, this));
-        this.snake_sprites.push(new SnakeSprite(0, 2, this));
-        this.snake_sprites.push(new SnakeSprite(0, 1, this));
-        this.snake_sprites.push(new SnakeSprite(0, 0, this));
+        this.snake_sprites.push(new SnakeSprite(0, 4, this, snake_color));
+        this.snake_sprites.push(new SnakeSprite(0, 3, this, snake_color));
+        this.snake_sprites.push(new SnakeSprite(0, 2, this, snake_color));
+        this.snake_sprites.push(new SnakeSprite(0, 1, this, snake_color));
+        this.snake_sprites.push(new SnakeSprite(0, 0, this, snake_color));
         this.directions.push(DIR.R);
         this.latest_direction = null;
-        this.refresh_count = 0;
         this.input_event_subscription_manager = input_event_subscription_manager;
         this.si = this.input_event_subscription_manager.add_subscriber(this);
         this.latest_drag = null;
         this.latest_element = -1;
         this.stop = false;
         this.already_eat = false;
+        this.scoreboard = new ScoreBoard(name);
     }
 
     add_tail() {
         var current_tail = this.snake_sprites[this.snake_sprites.length - 1];
-        this.snake_sprites.push(new SnakeSprite(current_tail.row, current_tail.col, this));
+        this.snake_sprites.push(new SnakeSprite(current_tail.row, current_tail.col, this, snake_color));
     }
 
     delete_tail() {
@@ -404,16 +408,12 @@ class Snake {
         this.segmentations.push(0);
     }
 
-    stop_moving() {
-        if (!this.stop)
-            alert("Your final score is " + scoreboard.score + ".");;
-        this.stop = true;
-    }
-
     cancel_moving() {
         for (var i = 0; i < this.snake_sprites.length; i++)
             this.snake_sprites[i].cancel_moving();
-        this.stop_moving();
+        this.stop = true;
+        if (!snakes[1].stop)
+            snakes[1].cancel_moving();
     }
 
     move() {
@@ -437,39 +437,37 @@ class Snake {
         }
     }
 
+    pre_update() {
+        if (!this.stop) {
+            this.already_eat = false;
+            if (this.latest_direction != null) {
+                this.segmentate(this.latest_direction);
+                this.latest_direction = null;
+            }
+            if (this.segmentations.length() > 0) {
+                this.segmentations.all_increase();
+                if (this.segmentations.peek(this.segmentations.length() - 1) >= this.snake_sprites.length) {
+                    this.segmentations.delete(this.segmentations.length() - 1);
+                    this.directions.splice(this.directions.length - 1, 1)[0];
+                }
+            }
+            try {
+                this.move();
+            } catch (e) {
+                console.log(e);
+                if (Utilities.string_compare(e, "Moving out of bounds error"))
+                    this.cancel_moving();
+            }
+        } else
+            game.restart_flag = true;
+    }
+
     update() {
         if (!this.stop) {
-            this.refresh_count++;
-            if (this.refresh_count % 30 == 0) {
-                this.already_eat = false;
-                if (this.latest_direction != null) {
-                    this.segmentate(this.latest_direction);
-                    this.latest_direction = null;
-                }
-                if (this.segmentations.length() > 0) {
-                    this.segmentations.all_increase();
-                    if (this.segmentations.peek(this.segmentations.length() - 1) >= this.snake_sprites.length) {
-                        this.segmentations.delete(this.segmentations.length() - 1);
-                        this.directions.splice(this.directions.length - 1, 1)[0];
-                    }
-                }
-                try {
-                    this.move();
-                } catch (e) {
-                    console.log(e);
-                    if (Utilities.string_compare(e, "Moving out of bounds error"))
-                        this.cancel_moving();
-                }
-                CollidableGObject.CGO_update();
-                for (var i = 0; i < this.snake_sprites.length; i++)
-                    this.snake_sprites[i].update();
-                for (var i = 0; i < foods.length; i++)
-                    foods[i].update();
-            }
-            if (this.refresh_count % 600 == 0)
-                SpoiledFoodSprite.create_ramdom_food();
-        } else
-            game.restart();
+            for (var i = 0; i < this.snake_sprites.length; i++)
+                this.snake_sprites[i].update();
+        }
+        this.scoreboard.update();
     }
 
     draw() {
@@ -499,20 +497,79 @@ class Snake {
         }
         this.input_event_subscription_manager.release_exclusive(this.si, event.type);
     }
+
+    destroy() {
+        for (var i = this.snake_sprites.length - 1; i >= 0; i--)
+            this.snake_sprites.splice(0, 1)[0].destroy();
+        this.input_event_subscription_manager.remove_subscriber(this.si);
+        this.scoreboard.destroy();
+    }
+}
+
+const snake_2_color = { 'r': 0, 'g': 255, 'b': 255, 'a': 255 };
+class Snake_2 extends Snake {
+    constructor(name) {
+        super(name);
+        this.scoreboard.move_to(new Coordinate(canvas.width - this.scoreboard.w, 0));
+        for (var i = this.snake_sprites.length - 1; i >= 0; i--)
+            this.snake_sprites.splice(0, 1)[0].destroy();
+        this.snake_sprites.push(new SnakeSprite(playgrid.row - 1, playgrid.col - 5, this, snake_2_color));
+        this.snake_sprites.push(new SnakeSprite(playgrid.row - 1, playgrid.col - 4, this, snake_2_color));
+        this.snake_sprites.push(new SnakeSprite(playgrid.row - 1, playgrid.col - 3, this, snake_2_color));
+        this.snake_sprites.push(new SnakeSprite(playgrid.row - 1, playgrid.col - 2, this, snake_2_color));
+        this.snake_sprites.push(new SnakeSprite(playgrid.row - 1, playgrid.col - 1, this, snake_2_color));
+        this.directions[0] = DIR.L;
+    }
+
+    add_tail() {
+        var current_tail = this.snake_sprites[this.snake_sprites.length - 1];
+        this.snake_sprites.push(new SnakeSprite(current_tail.row, current_tail.col, this, snake_2_color));
+    }
+
+    handle_input_event(event) {
+        this.input_event_subscription_manager.set_exclusive(this.si, event.type);
+        switch (event.type) {
+            case IEType.W: {
+                this.change_direction(DIR.U);
+                break;
+            }
+            case IEType.S: {
+                this.change_direction(DIR.D);
+                break;
+            }
+            case IEType.A: {
+                this.change_direction(DIR.L);
+                break;
+            }
+            case IEType.D: {
+                this.change_direction(DIR.R);
+                break;
+            }
+        }
+        this.input_event_subscription_manager.release_exclusive(this.si, event.type);
+    }
+
+    cancel_moving() {
+        for (var i = 0; i < this.snake_sprites.length; i++)
+            this.snake_sprites[i].cancel_moving();
+        this.stop = true;
+        if (!snakes[0].stop)
+            snakes[0].cancel_moving();
+    }
 }
 
 //---------------------------------------------- Score Board
 
-var scoreboard;
 class ScoreBoard extends Sprite {
-    constructor() {
-        super(canvas.width - 85, 0, 85, 40);
+    constructor(name) {
+        super(0, 0, 150, 40);
+        this.name = name;
         this.collidable = false;
         this.score = 0;
     }
 
     draw() {
-        this.attach_text(new Text_specs("" + this.score, 35, "Helvetica"));
+        this.attach_text(new Text_specs(this.name + ": " + this.score, 35, "Helvetica"));
         super.draw();
     }
 }
@@ -522,28 +579,60 @@ class ScoreBoard extends Sprite {
 class SnakeGame extends Game {
     constructor() {
         super(60);
+        this.refresh_count = 0;
+        this.end_game_status = null;//0: player 1 hit, 1: player 2 hit, 2: simultaneous hit
     }
 
     load() {
         playgrid = new PlayGrid();
         foods = new Array();
-        snake = new Snake();
+        snakes.push(new Snake("Player 1"));
+        snakes.push(new Snake_2("Player 2"));
         for (var i = 0; i < 10; i++)
             FoodSprite.create_ramdom_food();
-        scoreboard = new ScoreBoard();
+        this.refresh_count = 0;
+        this.end_game_status = null;
     }
 
     deload() {
+        console.info(this.end_game_status);
+        switch (this.end_game_status) {
+            case 0:
+                alert("Player 2 survives.");
+                break;
+            case 1:
+                alert("Player 1 survives.");
+                break;
+            case 2: {
+                if (snakes[0].scoreboard.score > snakes[1].scoreboard.score)
+                    alert("Player 1 wins.");
+                else if (snakes[0].scoreboard.score == snakes[1].scoreboard.score)
+                    alert("Tie.");
+                else
+                    alert("Player 2 wins.");
+            }
+        }
         playgrid.destroy();
-        for (var i = 0; i < foods.length; i++)
-            foods[i].destroy();
-        for (var i = 0; i < snake.snake_sprites.length; i++)
-            snake.snake_sprites[i].destroy();
-        scoreboard.destroy();
+        for (var i = foods.length - 1; i >= 0; i--)
+            foods.splice(0, 1)[0].destroy();
+        for (var i = snakes.length - 1; i >= 0; i--)
+            snakes.splice(0, 1)[0].destroy();
     }
 
     update() {
-        snake.update();
+        super.update();
+        this.refresh_count++;
+        if (this.refresh_count % 30 == 0) {
+            for (var i = 0; i < snakes.length; i++)
+                snakes[i].pre_update();
+            CollidableGObject.CGO_update();
+            for (var i = 0; i < snakes.length; i++)
+                snakes[i].update();
+            for (var i = 0; i < foods.length; i++)
+                foods[i].update();
+        }
+        if (this.refresh_count % 600 == 0)
+            SpoiledFoodSprite.create_ramdom_food();
     }
 
     draw() {
@@ -551,9 +640,11 @@ class SnakeGame extends Game {
         playgrid.draw();
         for (var i = 0; i < foods.length; i++)
             foods[i].draw();
-        snake.draw();
+        for (var i = 0; i < snakes.length; i++)
+            snakes[i].draw();
         FoodSprite.draw();
-        scoreboard.draw();
+        for (var i = 0; i < snakes.length; i++)
+            snakes[i].scoreboard.draw();
     }
 }
 

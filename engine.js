@@ -16,6 +16,7 @@ class Game {
         this.loop_handle = null;
         this.framerate = framerate;
         this.inter_frame = 1000 / framerate;
+        this.restart_flag = false;
     }
 
     start() {
@@ -63,7 +64,12 @@ class Game {
             this.input_event_subscription_manager.remove_subscriber(i);
     }
 
-    update() { }
+    update() {
+        if (this.restart_flag) {
+            this.restart_flag = false;
+            this.restart();
+        }
+    }
 
     draw() { canvas.width = canvas.width; }
 
@@ -283,11 +289,10 @@ class Coordinate extends Vector {
     }
 
     add(v) {
-        if (v instanceof Coordinate || (v instanceof Vector)) {
+        if (v instanceof Vector) {
             var res = super.add(v);
             return new Coordinate(res.x, res.y);
-        }
-        else
+        } else
             throw "Non-Coordinate parameter error";
     }
 
@@ -418,8 +423,12 @@ class GObject {
     move_to(coord) {
         if (!coord instanceof Coordinate)
             throw "Non-Coordinate parameter error";
-        if (this.movable)
-            this.move(coord.subtract(this.coord.add(this.moveVect)));
+        if (this.movable) {
+            if (this.moveVect)
+                this.move(coord.subtract(this.coord.add(this.moveVect)));
+            else
+                this.move(coord.subtract(this.coord));
+        }
     }
 
     update() {
@@ -1600,8 +1609,7 @@ class GridSprite extends Sprite {
                 throw "Moving out of bounds error";
         } else
             throw "Unknown parameter error";
-        var v = new Vector(this.delta_col * this.grid.cell_w, this.delta_row * this.grid.cell_h);
-        this.moveVect = v;
+        this.moveVect = new Vector(this.delta_col * this.grid.cell_w, this.delta_row * this.grid.cell_h);
     }
 
     update() {
@@ -1792,7 +1800,7 @@ class WorldTree extends GObject {
 
 //---------------------------------------------- Input Events
 
-const IEType_total = 8;
+const IEType_total = 12;
 const IEType = {
     SELECT: 0,
     DRAG: 1,
@@ -1801,7 +1809,11 @@ const IEType = {
     DOWN: 4,
     LEFT: 5,
     RIGHT: 6,
-    SPACE: 7
+    SPACE: 7,
+    W: 8,
+    S: 9,
+    A: 10,
+    D: 11
 };
 
 class Input_Event {
@@ -1852,6 +1864,18 @@ function onKeyDown(e) {
             break;
         case 32:
             input_event_subscription_manager.publish_input_event(new Input_Event(IEType.SPACE, null));
+            break;
+        case 87:
+            input_event_subscription_manager.publish_input_event(new Input_Event(IEType.W, null));
+            break;
+        case 83:
+            input_event_subscription_manager.publish_input_event(new Input_Event(IEType.S, null));
+            break;
+        case 65:
+            input_event_subscription_manager.publish_input_event(new Input_Event(IEType.A, null));
+            break;
+        case 68:
+            input_event_subscription_manager.publish_input_event(new Input_Event(IEType.D, null));
             break;
     }
 }
