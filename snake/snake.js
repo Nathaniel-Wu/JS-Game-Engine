@@ -233,10 +233,18 @@ class SnakeSprite extends PlaySprite {
         if (collision.into instanceof SnakeSprite)
             if (this.row + this.delta_row == collision.into.row + collision.into.delta_row && this.col + this.delta_col == collision.into.col + collision.into.delta_col) {
                 this.snake.cancel_moving();
-                if (this.snake instanceof Snake_2)
-                    game.end_game_snake_2_hit = true;
-                else
-                    game.end_game_snake_hit = true;
+                if (this.is_snake_head()) {
+                    if (this.snake instanceof Snake_2)
+                        game.end_game_snake_2_hit = true;
+                    else
+                        game.end_game_snake_hit = true;
+                }
+                if (collision.into.is_snake_head()) {
+                    if (collision.into.snake instanceof Snake_2)
+                        game.end_game_snake_2_hit = true;
+                    else
+                        game.end_game_snake_hit = true;
+                }
             }
         if (collision.into instanceof PlayGrid)
             if (this.snake.really_hiting_wall()) {
@@ -682,10 +690,10 @@ class SnakeGame extends Game {
         for (var i = 0; i < 10; i++)
             FoodSprite.create_ramdom_food();
         this.refresh_count = 0;
-        this.end_game_status = null;
     }
 
     deload() {
+        super.deload();
         if (this.single_player) {
             alert("Game over, your final score is " + this.scores[0] + ".");
         } else {
@@ -697,9 +705,9 @@ class SnakeGame extends Game {
                 else
                     alert("Player 1 wins.");
             } else if (this.end_game_snake_hit)
-                alert("Player 2 survives");
+                alert("Player 2 wins");
             else
-                alert("Player 1 survives");
+                alert("Player 1 wins");
         }
         playgrid.destroy();
         for (var i = foods.length - 1; i >= 0; i--)
@@ -736,7 +744,7 @@ class SnakeGame extends Game {
     }
 
     draw() {
-        canvas.width = canvas.width;
+        super.draw();
         playgrid.draw();
         for (var i = 0; i < foods.length; i++)
             foods[i].draw();
