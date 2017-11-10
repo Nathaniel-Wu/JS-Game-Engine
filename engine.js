@@ -151,7 +151,7 @@ class Game {
     ui_loop() {
         this.ui_stack.update();
         var t = this;
-        Utilities.wait(function () { return t.drawing; }, false, 1, function () { t.ui_context.clearRect(0, 0, t.ui_canvas.width, t.ui_canvas.height);; t.ui_stack.draw(); });
+        Utilities.wait(function () { return t.drawing; }, false, 1, function () { t.ui_context.clearRect(0, 0, t.ui_canvas.width, t.ui_canvas.height); t.ui_stack.draw(); });
     }
 
     start_ui_loop() {
