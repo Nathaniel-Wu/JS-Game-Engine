@@ -16,9 +16,13 @@ Drag elements from sidebar and drop them to playground, mix each other to create
 
 A Snake-like game.
 
-Press arrow key to navigate, eat red normal food to grow, eat blue spoiled food to shrink.
+Eat red normal food to make a snake grow, eat blue spoiled food to make a snake shrink.
+
+In single player mode, press arrow key to navigate; in multiplayer mode, press arrow key to navigate yellow-colored snake, press WASD to navigate cyan-colored snake.
 
 Normal food stays on stage permanently unless eaten by snake, spoiled food will disappear automatically if not eaten within a certain amount of time.
+
+Game will be over if a snake collides with wall or another snake or itself.
 
 ##### 3. [Bubble Shooter R](https://pages.github.ncsu.edu/twu23/Engine/bubble_shooter)
 
