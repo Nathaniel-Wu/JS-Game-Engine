@@ -2,16 +2,23 @@ var canvas;
 var canvas_x;
 var canvas_y;
 var context;
+var ui_canvas;
+var ui_context;
 var input_event_subscription_manager;
 
 //---------------------------------------------- Game
-
+/*var loop_count = 0;
+var frame_time_sum = 0;
+var frame_time_max = -1;
+var frame_time_min = 1000;*/
 class Game {
     constructor(framerate) {
         this.canvas = null;
         this.canvas_x = 0;
         this.canvas_y = 0;
         this.context = null;
+        this.ui_canvas = null;
+        this.ui_context = null;
         this.input_event_subscription_manager = null;
         this.loop_handle = null;
         this.framerate = framerate;
@@ -59,13 +66,21 @@ class Game {
 
     init() {
         this.canvas = document.getElementById("canvas");
+        this.canvas.setAttribute("style", "z-index: 0;");
         this.canvas_x = this.canvas.getBoundingClientRect().left;
         this.canvas_y = this.canvas.getBoundingClientRect().top;
+        this.canvas.setAttribute("style", "position: absolute; left: " + this.canvas_x + "px; top: " + this.canvas_y + "px; z-index: 0;");
         this.context = this.canvas.getContext("2d");
+        this.ui_canvas = document.createElement("canvas");
+        this.ui_canvas.setAttribute("width", this.canvas.width);
+        this.ui_canvas.setAttribute("height", this.canvas.height);
+        this.ui_canvas.setAttribute("style", "position: absolute; left: " + this.canvas_x + "px; top: " + this.canvas_y + "px; z-index: 1;");
+        document.getElementById("game").appendChild(this.ui_canvas);
+        this.ui_context = this.ui_canvas.getContext("2d");
         this.input_event_subscription_manager = new Input_Event_Subscription_Manager();
-        this.canvas.addEventListener("mousedown", onMouseDown);
-        this.canvas.addEventListener("mousemove", onMouseMove);
-        this.canvas.addEventListener("mouseup", onMouseUp);
+        this.ui_canvas.addEventListener("mousedown", onMouseDown);
+        this.ui_canvas.addEventListener("mousemove", onMouseMove);
+        this.ui_canvas.addEventListener("mouseup", onMouseUp);
         document.addEventListener("keydown", onKeyDown);
         this.switch_context();
     }
@@ -75,6 +90,8 @@ class Game {
         canvas_x = this.canvas_x;
         canvas_y = this.canvas_y;
         context = this.context;
+        ui_canvas = this.ui_canvas;
+        ui_context == this.ui_context;
         input_event_subscription_manager = this.input_event_subscription_manager;
     }
 
@@ -93,13 +110,28 @@ class Game {
         }
     }
 
-    draw() { canvas.width = canvas.width; }
+    draw() { this.context.clearRect(0, 0, this.canvas.width, this.canvas.height); }
 
-    loop() {
+    loop() {/*
+        loop_count++;
+        var frame_time = (new Date()).getTime();*/
         this.update();
         this.drawing = true;
         this.draw();
-        this.drawing = false;
+        this.drawing = false;/*
+        frame_time = (new Date()).getTime() - frame_time;
+        if (frame_time < frame_time_min)
+            frame_time_min = frame_time;
+        if (frame_time > frame_time_max)
+            frame_time_max = frame_time;
+        frame_time_sum += frame_time;
+        if (loop_count == 60) {
+            console.info("max frame time: " + frame_time_max + "ms; min frame time: " + frame_time_min + "ms; average: " + frame_time_sum / 60 + "ms");
+            loop_count = 0;
+            frame_time_sum = 0;
+            frame_time_max = -1;
+            frame_time_min = 1000;
+        }*/
     }
 
     start_loop() {
@@ -118,7 +150,8 @@ class Game {
 
     ui_loop() {
         this.ui_stack.update();
-        this.ui_stack.draw();
+        var t = this;
+        Utilities.wait(function () { return t.drawing; }, false, 1, function () { t.ui_context.clearRect(0, 0, t.ui_canvas.width, t.ui_canvas.height);; t.ui_stack.draw(); });
     }
 
     start_ui_loop() {
@@ -165,9 +198,11 @@ class UI {
 
     update() { }
     draw() {
+        context = this.game.ui_context;
         context.globalAlpha = this.alpha;
         this.actual_draw();
         context.globalAlpha = 1.0;
+        context = this.game.context;
     }
     actual_draw() { }
     destroy() { }
@@ -264,6 +299,52 @@ class Utilities {
             setTimeout(function () { wait(test_func, expected_value, check_interval, callback); }, check_interval);
             return;
         } callback();
+    }
+}
+
+class bitmap {
+    constructor(size) {
+        this._cols = 8;
+        this._shift = 3;
+        this._rows = (size >> this._shift) + 1;
+        this._buf = new ArrayBuffer(this._rows);
+        this._bin = new Uint8Array(this._buf);
+    }
+
+    get(off) {
+        var row = off >> this._shift;
+        var col = off % this._cols;
+        var bit = 1 << col;
+        return (this._bin[row] & bit) > 0;
+    }
+
+    set(off, bool) {
+        var row = off >> this._shift;
+        var col = off % this._cols;
+        var bit = 1 << col;
+        if (bool) {
+            this._bin[row] |= bit;
+        } else {
+            bit = 255 ^ bit;
+            this._bin[row] &= bit;
+        }
+    }
+
+    flip(off) {
+        var row = Math.floor(off / this._cols);
+        var col = off % this._cols;
+        var bit = 1 << col;
+        this._bin[row] ^= bit;
+    }
+
+    fill() {
+        for (var i = 0; i < this._rows; i++)
+            this._bin[i] = 255;
+    }
+
+    clear() {
+        for (var i = 0; i < this._rows; i++)
+            this._bin[i] = 0;
     }
 }
 
@@ -1210,17 +1291,20 @@ class CollidableGObject extends GObject {
         }
         var nodes = collision_quad_tree.traverse_and_get_nodes();
         if (nodes) {
-            var checked_pairs = new Array();
+            var checked_pairs = new bitmap(passive_instances.length * passive_instances.length);
             var is_checked = function (instance_index_0, instance_index_1) {
-                for (var i = 0; i < checked_pairs.length; i++)
-                    if ((checked_pairs[i][0] == instance_index_0 && checked_pairs[i][1] == instance_index_1) || (checked_pairs[i][0] == instance_index_1 && checked_pairs[i][1] == instance_index_0))
-                        return true;
-                return false;
+                return checked_pairs.get(instance_index_0 * passive_instances.length + instance_index_1);
+            }
+            var check = function (instance_index_0, instance_index_1) {
+                checked_pairs.set(instance_index_0 * passive_instances.length + instance_index_1, true);
+                checked_pairs.set(instance_index_1 * passive_instances.length + instance_index_0, true);
             }
             for (var i = 0; i < nodes.length; i++) {
                 if (nodes[i].isLeaf()) {
                     var hard_nexts;
-                    if (nodes[i].parent)
+                    if (nodes[i].parent && nodes[i].parent.parent)
+                        hard_nexts = CollisionQuadtree.traverse_and_get_values_(nodes[i].parent.parent);
+                    else if (nodes[i].parent)
                         hard_nexts = CollisionQuadtree.traverse_and_get_values_(nodes[i].parent);
                     else
                         hard_nexts = nodes[i].values;
@@ -1232,7 +1316,7 @@ class CollidableGObject extends GObject {
                                 if (hard_nexts[j].collides(hard_nexts[k]))
                                     hard_instances[instance_index_j].resolve(new Collision(null, hard_instances[instance_index_k], CPType.PASSIVE));
                             }
-                            checked_pairs.push({ instance_index_j, instance_index_k });
+                            check(instance_index_j, instance_index_k);
                         }
                     }
                 }
@@ -1259,17 +1343,20 @@ class CollidableGObject extends GObject {
         }
         var nodes = collision_quad_tree.traverse_and_get_nodes();
         if (nodes) {
-            var checked_pairs = new Array();
+            var checked_pairs = new bitmap(passive_instances.length * passive_instances.length);
             var is_checked = function (instance_index_0, instance_index_1) {
-                for (var i = 0; i < checked_pairs.length; i++)
-                    if ((checked_pairs[i][0] == instance_index_0 && checked_pairs[i][1] == instance_index_1) || (checked_pairs[i][0] == instance_index_1 && checked_pairs[i][1] == instance_index_0))
-                        return true;
-                return false;
+                return checked_pairs.get(instance_index_0 * passive_instances.length + instance_index_1);
+            }
+            var check = function (instance_index_0, instance_index_1) {
+                checked_pairs.set(instance_index_0 * passive_instances.length + instance_index_1, true);
+                checked_pairs.set(instance_index_1 * passive_instances.length + instance_index_0, true);
             }
             for (var i = 0; i < nodes.length; i++) {
                 if (nodes[i].isLeaf()) {
                     var passive_nexts;
-                    if (nodes[i].parent)
+                    if (nodes[i].parent && nodes[i].parent.parent)
+                        passive_nexts = CollisionQuadtree.traverse_and_get_values_(nodes[i].parent.parent);
+                    else if (nodes[i].parent)
                         passive_nexts = CollisionQuadtree.traverse_and_get_values_(nodes[i].parent);
                     else
                         passive_nexts = nodes[i].values;
@@ -1281,7 +1368,7 @@ class CollidableGObject extends GObject {
                                 if (passive_nexts[j].collides(passive_nexts[k]))
                                     passive_instances[instance_index_j].resolve(new Collision(null, passive_instances[instance_index_k], CPType.PASSIVE));
                             }
-                            checked_pairs.push({ instance_index_j, instance_index_k });
+                            check(instance_index_j, instance_index_k);
                         }
                     }
                 }
