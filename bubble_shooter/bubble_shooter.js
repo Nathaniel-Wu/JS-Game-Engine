@@ -21,7 +21,6 @@ class BubbleShooter extends Game {
         this.max_allowed_row = null;
         this.previous_loop = null;
         this.score = 0;
-        this.ui_stack = null;
     }
 
     load() {
@@ -40,7 +39,6 @@ class BubbleShooter extends Game {
         for (var i = 0; i < 3; i++)
             this.generate_row_of_fixed_bubbles(i);
         this.previous_loop = 0;
-        this.ui_stack = new UIStack(this);
         this.ui_stack.push(new ScoreBoard(this, 0, canvas.height - 62, 100, 62));
     }
 
@@ -60,10 +58,11 @@ class BubbleShooter extends Game {
         this.current_max_row = null;
         this.max_allowed_row = null;
         this.previous_loop = null;
-        this.ui_stack = null;
+        this.score = 0;
     }
 
     update() {
+        super.update();
         if (this.fixed_bubbles)
             for (var i = 0; i < this.fixed_bubbles.length; i++)
                 this.fixed_bubbles[i].update();
@@ -113,10 +112,8 @@ class BubbleShooter extends Game {
         super.loop();
         this.previous_loop++;
         if (this.current_max_row > this.max_allowed_row + 1) {
-            this.stop();
+            this.restart_flag = true;
             alert("Game Over!");
-            this.load()
-            this.start_loop();
         } else
             this.current_max_row = 0;
     }
