@@ -15,17 +15,38 @@ class Game {
         this.input_event_subscription_manager = null;
         this.loop_handle = null;
         this.framerate = framerate;
-        this.inter_frame = 1000 / framerate;
+        this.inter_frame = 1000 / this.framerate;
         this.restart_flag = false;
+        this.ui_stack = new UIStack(this);
+        this.ui_loop_handle = null;
+        this.ui_framerate = framerate;
+        this.ui_inter_frame = 1000 / this.ui_framerate;
+        this.drawing = false;
+    }
+
+    start_ui_only() {
+        this.init();
+        this.start_ui_loop();
     }
 
     start() {
         this.init();
+        this.load();
+        this.start_loop();
+        this.start_ui_loop();
+    }
+
+    pause() {
+        this.stop_loop();
+    }
+
+    resume() {
         this.start_loop();
     }
 
     stop() {
         this.stop_loop();
+        this.stop_ui_loop();
         this.deload();
     }
 
@@ -33,6 +54,7 @@ class Game {
         this.stop();
         this.load();
         this.start_loop();
+        this.start_ui_loop();
     }
 
     init() {
@@ -46,7 +68,6 @@ class Game {
         this.canvas.addEventListener("mouseup", onMouseUp);
         document.addEventListener("keydown", onKeyDown);
         this.switch_context();
-        this.load();
     }
 
     switch_context() {
@@ -62,6 +83,7 @@ class Game {
     deload() {
         for (var i = this.input_event_subscription_manager.subscribers.length - 1; i >= 0; i--)
             this.input_event_subscription_manager.remove_subscriber(i);
+        this.ui_stack.deload();
     }
 
     update() {
@@ -75,7 +97,9 @@ class Game {
 
     loop() {
         this.update();
+        this.drawing = true;
         this.draw();
+        this.drawing = false;
     }
 
     start_loop() {
@@ -90,6 +114,35 @@ class Game {
             throw "Not in loop error";
         clearInterval(this.loop_handle);
         this.loop_handle = null;
+    }
+
+    ui_loop() {
+        this.ui_stack.update();
+        this.ui_stack.draw();
+    }
+
+    start_ui_loop() {
+        if (this.ui_loop_handle)
+            throw "Already in ui loop error";
+        var t = this;
+        this.ui_loop_handle = setInterval(function () { t.ui_loop(); }, this.ui_inter_frame);
+    }
+
+    stop_ui_loop() {
+        if (!this.ui_loop_handle)
+            throw "Not in ui loop error";
+        clearInterval(this.ui_loop_handle);
+        this.ui_loop_handle = null;
+    }
+
+    set_ui_frame_rate(ui_framerate) {
+        var in_ui_loop = (this.ui_loop_handle) ? true : false;
+        if (in_ui_loop)
+            this.stop_ui_loop();
+        this.ui_framerate = ui_framerate;
+        this.ui_inter_frame = 1000 / this.ui_framerate;
+        if (in_ui_loop)
+            this.start_ui_loop();
     }
 }
 
@@ -117,6 +170,7 @@ class UI {
         context.globalAlpha = 1.0;
     }
     actual_draw() { }
+    destroy() { }
 }
 
 class UIStack {
@@ -135,6 +189,11 @@ class UIStack {
 
     pop() {
         return this.stack.splice(this.stack.length - 1, 1)[0];
+    }
+
+    deload() {
+        for (var i = this.stack.length - 1; i >= 0; i--)
+            this.pop().destroy();
     }
 
     update() {
@@ -198,6 +257,13 @@ class Utilities {
             return null;
         }
         return JSON.parse(httpReq.response);
+    }
+
+    static wait(test_func, expected_value, check_interval, callback) {
+        while (test_func() !== expected_value) {
+            setTimeout(function () { wait(test_func, expected_value, check_interval, callback); }, check_interval);
+            return;
+        } callback();
     }
 }
 
@@ -1427,10 +1493,12 @@ class Sprite extends CollidableGObject {
             context.drawImage(Texture.get_Texture_instance(this.texture_id).image, this.coord.x, this.coord.y, this.w, this.h);
         }
         if (this.text) {
+            context.beginPath();
             context.font = this.text.font;
             context.fillStyle = 'black';
-            context.fillText(this.text.text, this.coord.x, this.coord.y + Math.round(this.h - (this.h - this.text.size) / 2), this.w);
-            context.beginPath();
+            context.textAlign = 'center';
+            context.textBaseline = 'middle';
+            context.fillText(this.text.text, this.coord.x + this.w / 2, this.coord.y + this.h / 2);
         }
     }
 
@@ -1450,6 +1518,31 @@ class Sprite extends CollidableGObject {
         super.rotate_cancel();
         if (this.decorator)
             this.decorator.rotate_cancel();
+    }
+}
+
+class Colored_Sprite extends Sprite {
+    constructor(x, y, w, h, r, g, b, a) {
+        super(x, y, w, h);
+        this.color = null;
+        this.attach_color(r, g, b, a);
+    }
+
+    attach_texture(texture_id) { /*Disable texture*/ };
+
+    attach_color(r, g, b, a) {
+        if ((0 > r || r > 255) || (0 > g || g > 255) || (0 > b || b > 255) || (0 > a || a > 255))
+            throw "Invalid color error";
+        this.color = { 'r': r, 'g': g, 'b': b, 'a': a };
+    }
+
+    actual_draw() {
+        if (this.color) {
+            context.beginPath();
+            context.fillStyle = "rgba(" + this.color.r + "," + this.color.g + "," + this.color.b + "," + this.color.a + ")";
+            context.fillRect(this.coord.x, this.coord.y, this.w, this.h);
+        }
+        super.actual_draw();
     }
 }
 
@@ -1508,9 +1601,9 @@ class SpriteSheet extends Sprite {
                 context.drawImage(Texture.get_Texture_instance(this.texture_id).image, this.col * this.col_w, this.row * this.row_h, this.col_w, this.row_h, this.coord.x, this.coord.y, this.w, this.h);
             }
             if (this.text) {
+                context.beginPath();
                 context.font = this.text.font;
                 context.fillText(this.text.text, this.coord.x, this.coord.y + Math.round(this.h - (this.h - this.text.size) / 2), this.w);
-                context.beginPath();
             }
         }
     }
