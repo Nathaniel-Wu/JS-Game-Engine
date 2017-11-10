@@ -231,17 +231,27 @@ class SnakeSprite extends PlaySprite {
 
     resolve(collision) {
         if (collision.into instanceof SnakeSprite)
-            if (this.row + this.delta_row == collision.into.row + collision.into.delta_row && this.col + this.delta_col == collision.into.col + collision.into.delta_col)
+            if (this.row + this.delta_row == collision.into.row + collision.into.delta_row && this.col + this.delta_col == collision.into.col + collision.into.delta_col) {
                 this.snake.cancel_moving();
+                if (this.snake instanceof Snake_2)
+                    game.end_game_snake_2_hit = true;
+                else
+                    game.end_game_snake_hit = true;
+            }
         if (collision.into instanceof PlayGrid)
-            if (this.snake.really_hiting_wall())
+            if (this.snake.really_hiting_wall()) {
                 this.snake.cancel_moving();
+                if (this.snake instanceof Snake_2)
+                    game.end_game_snake_2_hit = true;
+                else
+                    game.end_game_snake_hit = true;
+            }
         if (collision.into instanceof FoodSprite)
             if (this.is_snake_head())
                 if (this.row + this.delta_row == collision.into.row && this.col + this.delta_col == collision.into.col)
                     if (!this.snake.already_eat) {
                         collision.into.eat_by(this.snake);
-                        this.snake.scoreboard.score++;
+                        this.snake.score++;
                         this.snake.already_eat = true;
                     }
     }
@@ -355,7 +365,7 @@ class Snake {
         this.latest_element = -1;
         this.stop = false;
         this.already_eat = false;
-        this.scoreboard = new ScoreBoard(name);
+        this.score = 0;
     }
 
     add_tail() {
@@ -409,11 +419,12 @@ class Snake {
     }
 
     cancel_moving() {
+        this.stop = true;
+    }
+
+    stop_moving() {
         for (var i = 0; i < this.snake_sprites.length; i++)
             this.snake_sprites[i].cancel_moving();
-        this.stop = true;
-        if (!snakes[1].stop)
-            snakes[1].cancel_moving();
     }
 
     move() {
@@ -455,8 +466,13 @@ class Snake {
                 this.move();
             } catch (e) {
                 console.log(e);
-                if (Utilities.string_compare(e, "Moving out of bounds error"))
+                if (Utilities.string_compare(e, "Moving out of bounds error")) {
                     this.cancel_moving();
+                    if (this instanceof Snake_2)
+                        game.end_game_snake_2_hit = true;
+                    else
+                        game.end_game_snake_hit = true;
+                }
             }
         } else
             game.restart_flag = true;
@@ -467,7 +483,6 @@ class Snake {
             for (var i = 0; i < this.snake_sprites.length; i++)
                 this.snake_sprites[i].update();
         }
-        this.scoreboard.update();
     }
 
     draw() {
@@ -502,7 +517,6 @@ class Snake {
         for (var i = this.snake_sprites.length - 1; i >= 0; i--)
             this.snake_sprites.splice(0, 1)[0].destroy();
         this.input_event_subscription_manager.remove_subscriber(this.si);
-        this.scoreboard.destroy();
     }
 }
 
@@ -510,7 +524,6 @@ const snake_2_color = { 'r': 0, 'g': 255, 'b': 255, 'a': 255 };
 class Snake_2 extends Snake {
     constructor(name) {
         super(name);
-        this.scoreboard.move_to(new Coordinate(canvas.width - this.scoreboard.w, 0));
         for (var i = this.snake_sprites.length - 1; i >= 0; i--)
             this.snake_sprites.splice(0, 1)[0].destroy();
         this.snake_sprites.push(new SnakeSprite(playgrid.row - 1, playgrid.col - 5, this, snake_2_color));
@@ -548,21 +561,53 @@ class Snake_2 extends Snake {
         }
         this.input_event_subscription_manager.release_exclusive(this.si, event.type);
     }
+}
 
-    cancel_moving() {
-        for (var i = 0; i < this.snake_sprites.length; i++)
-            this.snake_sprites[i].cancel_moving();
-        this.stop = true;
-        if (!snakes[0].stop)
-            snakes[0].cancel_moving();
+//---------------------------------------------- Game UI
+
+class SnakeGame_ModeSelection extends UI {
+    constructor(game_) {
+        if (!game_ instanceof SnakeGame)
+            throw "Non-SnakeGame parameter error";
+        super(game_, 1.0, true);
+        this.si = this.game.input_event_subscription_manager.add_subscriber(this);
+        this.single_player = true;
+        this.selection_made = false;
+        this.sp = new Colored_Sprite(0, 0, this.game.canvas.width, this.game.canvas.height / 2, snake_color.r, snake_color.g, snake_color.b, snake_color.a);
+        this.sp.attach_text(new Text_specs("Single Player", 60, "Helvetica"));
+        this.mp = new Colored_Sprite(0, this.game.canvas.height / 2, this.game.canvas.width, this.game.canvas.height / 2, snake_2_color.r, snake_2_color.g, snake_2_color.b, snake_2_color.a);
+        this.mp.attach_text(new Text_specs("Multiplayer", 60, "Helvetica"));
+    }
+
+    draw() {
+        this.sp.draw();
+        this.mp.draw();
+    }
+
+    handle_input_event(event) {
+        if (event.type == IEType.SELECT) {
+            this.game.input_event_subscription_manager.set_exclusive(this.si, event.type);
+            if (0 <= event.coord.x && event.coord.x <= this.game.canvas.width && 0 <= event.coord.y && event.coord.y <= this.game.canvas.height) {
+                if (event.coord.y < this.game.canvas.height / 2)
+                    this.single_player = true;
+                else
+                    this.single_player = false;
+                this.selection_made = true;
+            }
+            this.game.input_event_subscription_manager.release_exclusive(this.si, event.type);
+        }
+    }
+
+    destroy() {
+        this.game.input_event_subscription_manager.remove_subscriber(this.si);
+        this.sp.destroy();
+        this.mp.destroy();
     }
 }
 
-//---------------------------------------------- Score Board
-
 class ScoreBoard extends Sprite {
     constructor(name) {
-        super(0, 0, 150, 40);
+        super(0, 0, 200, 50);
         this.name = name;
         this.collidable = false;
         this.score = 0;
@@ -574,20 +619,66 @@ class ScoreBoard extends Sprite {
     }
 }
 
+class SnakeGame_Scoreboards extends UI {
+    constructor(game_, single_player) {
+        if (!game_ instanceof SnakeGame)
+            throw "Non-SnakeGame parameter error";
+        super(game_, 1.0, true);
+        this.single_player = single_player;
+        this.scoreboards = new Array();
+        this.scoreboards.push(new ScoreBoard("Player 1"));
+        if (!this.single_player) {
+            this.scoreboards.push(new ScoreBoard("Player 2"));
+            this.scoreboards[1].move_to(new Coordinate(canvas.width - this.scoreboards[1].w, 0));
+        }
+    }
+
+    update() {
+        this.scoreboards[0].score = this.game.scores[0];
+        this.scoreboards[0].update();
+        if (!this.single_player) {
+            this.scoreboards[1].score = this.game.scores[1];
+            this.scoreboards[1].update();
+        }
+    }
+
+    actual_draw() {
+        this.scoreboards[0].draw();
+        if (!this.single_player)
+            this.scoreboards[1].draw();
+    }
+
+    destroy() {
+        this.scoreboards[0].destroy();
+        if (!this.single_player)
+            this.scoreboards[1].destroy();
+    }
+}
+
 //---------------------------------------------- Game Design
 
 class SnakeGame extends Game {
     constructor() {
         super(60);
+        this.scores = [0, 0];
         this.refresh_count = 0;
-        this.end_game_status = null;//0: player 1 hit, 1: player 2 hit, 2: simultaneous hit
+        this.end_game_snake_hit = false;
+        this.end_game_snake_2_hit = false;
+        this.single_player = true;
+    }
+
+    init() {
+        super.init();
+        this.ui_stack.push(new SnakeGame_ModeSelection(this));
     }
 
     load() {
+        this.ui_stack.push(new SnakeGame_Scoreboards(this, this.single_player));
         playgrid = new PlayGrid();
         foods = new Array();
         snakes.push(new Snake("Player 1"));
-        snakes.push(new Snake_2("Player 2"));
+        if (!this.single_player)
+            snakes.push(new Snake_2("Player 2"));
         for (var i = 0; i < 10; i++)
             FoodSprite.create_ramdom_food();
         this.refresh_count = 0;
@@ -595,28 +686,28 @@ class SnakeGame extends Game {
     }
 
     deload() {
-        console.info(this.end_game_status);
-        switch (this.end_game_status) {
-            case 0:
-                alert("Player 2 survives.");
-                break;
-            case 1:
-                alert("Player 1 survives.");
-                break;
-            case 2: {
-                if (snakes[0].scoreboard.score > snakes[1].scoreboard.score)
-                    alert("Player 1 wins.");
-                else if (snakes[0].scoreboard.score == snakes[1].scoreboard.score)
+        if (this.single_player) {
+            alert("Game over, your final score is " + this.scores[0] + ".");
+        } else {
+            if (this.end_game_snake_hit && this.end_game_snake_2_hit) {
+                if (this.scores[0] < this.scores[1])
+                    alert("Player 2 wins.");
+                else if (this.scores[0] == this.scores[1])
                     alert("Tie.");
                 else
-                    alert("Player 2 wins.");
-            }
+                    alert("Player 1 wins.");
+            } else if (this.end_game_snake_hit)
+                alert("Player 2 survives");
+            else
+                alert("Player 1 survives");
         }
         playgrid.destroy();
         for (var i = foods.length - 1; i >= 0; i--)
             foods.splice(0, 1)[0].destroy();
         for (var i = snakes.length - 1; i >= 0; i--)
             snakes.splice(0, 1)[0].destroy();
+        this.end_game_snake_hit = false;
+        this.end_game_snake_2_hit = false;
     }
 
     update() {
@@ -626,6 +717,12 @@ class SnakeGame extends Game {
             for (var i = 0; i < snakes.length; i++)
                 snakes[i].pre_update();
             CollidableGObject.CGO_update();
+            var stop = false;
+            for (var i = 0; i < snakes.length; i++)
+                if (snakes[i].stop) {
+                    stop = true;
+                    break;
+                } if (stop) for (var i = 0; i < snakes.length; i++) snakes[i].stop_moving();
             for (var i = 0; i < snakes.length; i++)
                 snakes[i].update();
             for (var i = 0; i < foods.length; i++)
@@ -633,6 +730,9 @@ class SnakeGame extends Game {
         }
         if (this.refresh_count % 600 == 0)
             SpoiledFoodSprite.create_ramdom_food();
+        this.scores[0] = snakes[0].score;
+        if (!this.single_player)
+            this.scores[1] = snakes[1].score;
     }
 
     draw() {
@@ -643,12 +743,27 @@ class SnakeGame extends Game {
         for (var i = 0; i < snakes.length; i++)
             snakes[i].draw();
         FoodSprite.draw();
-        for (var i = 0; i < snakes.length; i++)
-            snakes[i].scoreboard.draw();
+    }
+
+    ui_loop() {
+        if (this.ui_stack.stack[0] instanceof SnakeGame_ModeSelection) {
+            if (this.ui_stack.stack[0].selection_made) {
+                this.single_player = this.ui_stack.stack[0].single_player;
+                this.ui_stack.deload();
+                var t = this;
+                var restart_ = function () {
+                    t.stop_ui_loop();
+                    t.load();
+                    t.start_loop();
+                    t.start_ui_loop();
+                }; restart_();
+            }
+        }
+        super.ui_loop();
     }
 }
 
 //---------------------------------------------- Run
 
 var game = new SnakeGame();
-game.start();
+game.start_ui_only();
