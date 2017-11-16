@@ -42,7 +42,10 @@ const food_color = { r: 255, g: 0, b: 0, a: 255 };
 class FoodSprite extends PlaySprite {
     constructor(row, col) {
         super(row, col);
-        this.movable = false;
+        if (game.game_mode == 0 && game.multiplayer_role == 1)
+            this.movable = true;
+        else
+            this.movable = false;
         this.fi = -1;
     }
 
@@ -181,6 +184,9 @@ class SpoiledFoodSprite extends FoodSprite {
     }
 
     update() {
+        super.update();
+        if (game.game_mode == 0 && game.multiplayer_role == 1)
+            return;
         this.cycle--;
         if (this.cycle < 0) {
             for (var i = 0; i < foods.length; i++)
@@ -473,7 +479,6 @@ class Snake {
             try {
                 this.move();
             } catch (e) {
-                console.log(e);
                 if (Utilities.string_compare(e, "Moving out of bounds error")) {
                     this.cancel_moving();
                     if (this instanceof Snake_2)
@@ -499,26 +504,28 @@ class Snake {
     }
 
     handle_input_event(event) {
-        this.input_event_subscription_manager.set_exclusive(this.si, event.type);
-        switch (event.type) {
-            case IEType.UP: {
-                this.change_direction(DIR.U);
-                break;
+        if (!(game.game_mode == 0 && game.multiplayer_role == 1)) {
+            this.input_event_subscription_manager.set_exclusive(this.si, event.type);
+            switch (event.type) {
+                case IEType.UP: {
+                    this.change_direction(DIR.U);
+                    break;
+                }
+                case IEType.DOWN: {
+                    this.change_direction(DIR.D);
+                    break;
+                }
+                case IEType.LEFT: {
+                    this.change_direction(DIR.L);
+                    break;
+                }
+                case IEType.RIGHT: {
+                    this.change_direction(DIR.R);
+                    break;
+                }
             }
-            case IEType.DOWN: {
-                this.change_direction(DIR.D);
-                break;
-            }
-            case IEType.LEFT: {
-                this.change_direction(DIR.L);
-                break;
-            }
-            case IEType.RIGHT: {
-                this.change_direction(DIR.R);
-                break;
-            }
+            this.input_event_subscription_manager.release_exclusive(this.si, event.type);
         }
-        this.input_event_subscription_manager.release_exclusive(this.si, event.type);
     }
 
     destroy() {
@@ -548,26 +555,49 @@ class Snake_2 extends Snake {
     }
 
     handle_input_event(event) {
-        this.input_event_subscription_manager.set_exclusive(this.si, event.type);
-        switch (event.type) {
-            case IEType.W: {
-                this.change_direction(DIR.U);
-                break;
+        if (game.game_mode == 0 && game.multiplayer_role == 1) {
+            this.input_event_subscription_manager.set_exclusive(this.si, event.type);
+            switch (event.type) {
+                case IEType.UP: {
+                    game.guest_to_host_connection.send({ 'class': "DIR", 'D': DIR.U });
+                    break;
+                }
+                case IEType.DOWN: {
+                    game.guest_to_host_connection.send({ 'class': "DIR", 'D': DIR.D });
+                    break;
+                }
+                case IEType.LEFT: {
+                    game.guest_to_host_connection.send({ 'class': "DIR", 'D': DIR.L });
+                    break;
+                }
+                case IEType.RIGHT: {
+                    game.guest_to_host_connection.send({ 'class': "DIR", 'D': DIR.R });
+                    break;
+                }
             }
-            case IEType.S: {
-                this.change_direction(DIR.D);
-                break;
+            this.input_event_subscription_manager.release_exclusive(this.si, event.type);
+        } else if (game.game_mode == 2) {
+            this.input_event_subscription_manager.set_exclusive(this.si, event.type);
+            switch (event.type) {
+                case IEType.W: {
+                    this.change_direction(DIR.U);
+                    break;
+                }
+                case IEType.S: {
+                    this.change_direction(DIR.D);
+                    break;
+                }
+                case IEType.A: {
+                    this.change_direction(DIR.L);
+                    break;
+                }
+                case IEType.D: {
+                    this.change_direction(DIR.R);
+                    break;
+                }
             }
-            case IEType.A: {
-                this.change_direction(DIR.L);
-                break;
-            }
-            case IEType.D: {
-                this.change_direction(DIR.R);
-                break;
-            }
+            this.input_event_subscription_manager.release_exclusive(this.si, event.type);
         }
-        this.input_event_subscription_manager.release_exclusive(this.si, event.type);
     }
 }
 
@@ -579,27 +609,32 @@ class SnakeGame_ModeSelection extends UI {
             throw "Non-SnakeGame parameter error";
         super(game_, 1.0, true);
         this.si = this.game.input_event_subscription_manager.add_subscriber(this);
-        this.single_player = true;
+        this.game_mode = -1;
         this.selection_made = false;
-        this.sp = new Colored_Sprite(0, 0, this.game.canvas.width, this.game.canvas.height / 2, snake_color.r, snake_color.g, snake_color.b, snake_color.a);
+        this.mpn = new Colored_Sprite(0, 0, this.game.canvas.width, this.game.canvas.height / 3, snake_2_color.r, snake_2_color.g, snake_2_color.b, snake_2_color.a);
+        this.mpn.attach_text(new Text_specs("Multiplayer (network)", 60, "Helvetica"));
+        this.sp = new Colored_Sprite(0, this.game.canvas.height / 3, this.game.canvas.width, this.game.canvas.height / 3, snake_color.r, snake_color.g, snake_color.b, snake_color.a);
         this.sp.attach_text(new Text_specs("Single Player", 60, "Helvetica"));
-        this.mp = new Colored_Sprite(0, this.game.canvas.height / 2, this.game.canvas.width, this.game.canvas.height / 2, snake_2_color.r, snake_2_color.g, snake_2_color.b, snake_2_color.a);
-        this.mp.attach_text(new Text_specs("Multiplayer", 60, "Helvetica"));
+        this.mpl = new Colored_Sprite(0, 2 * this.game.canvas.height / 3, this.game.canvas.width, this.game.canvas.height / 3, snake_2_color.r, snake_2_color.g, snake_2_color.b, snake_2_color.a);
+        this.mpl.attach_text(new Text_specs("Multiplayer (local)", 60, "Helvetica"));
     }
 
     draw() {
+        this.mpn.draw();
         this.sp.draw();
-        this.mp.draw();
+        this.mpl.draw();
     }
 
     handle_input_event(event) {
         if (event.type == IEType.SELECT) {
             this.game.input_event_subscription_manager.set_exclusive(this.si, event.type);
             if (0 <= event.coord.x && event.coord.x <= this.game.canvas.width && 0 <= event.coord.y && event.coord.y <= this.game.canvas.height) {
-                if (event.coord.y < this.game.canvas.height / 2)
-                    this.single_player = true;
+                if (event.coord.y < this.game.canvas.height / 3)
+                    this.game_mode = 0;
+                else if (event.coord.y < 2 * this.game.canvas.height / 3)
+                    this.game_mode = 1;
                 else
-                    this.single_player = false;
+                    this.game_mode = 2;
                 this.selection_made = true;
             }
             this.game.input_event_subscription_manager.release_exclusive(this.si, event.type);
@@ -608,8 +643,73 @@ class SnakeGame_ModeSelection extends UI {
 
     destroy() {
         this.game.input_event_subscription_manager.remove_subscriber(this.si);
+        this.mpn.destroy();
         this.sp.destroy();
-        this.mp.destroy();
+        this.mpl.destroy();
+    }
+}
+
+class SnakeGame_Multiplayer_Role_Select extends UI {
+    constructor(game_) {
+        if (!game_ instanceof SnakeGame)
+            throw "Non-SnakeGame parameter error";
+        super(game_, 1.0, true);
+        this.si = this.game.input_event_subscription_manager.add_subscriber(this);
+        this.role = -1;
+        this.selection_made = false;
+        this.host = new Colored_Sprite(0, 0, this.game.canvas.width, this.game.canvas.height / 2, snake_color.r, snake_color.g, snake_color.b, snake_color.a);
+        this.host.attach_text(new Text_specs("Play as Host", 60, "Helvetica"));
+        this.guest = new Colored_Sprite(0, this.game.canvas.height / 2, this.game.canvas.width, this.game.canvas.height / 2, snake_2_color.r, snake_2_color.g, snake_2_color.b, snake_2_color.a);
+        this.guest.attach_text(new Text_specs("Play as Guest", 60, "Helvetica"));
+    }
+
+    draw() {
+        this.host.draw();
+        this.guest.draw();
+    }
+
+    handle_input_event(event) {
+        if (event.type == IEType.SELECT) {
+            this.game.input_event_subscription_manager.set_exclusive(this.si, event.type);
+            if (0 <= event.coord.x && event.coord.x <= this.game.canvas.width && 0 <= event.coord.y && event.coord.y <= this.game.canvas.height) {
+                if (event.coord.y < this.game.canvas.height / 2)
+                    this.role = 0;
+                else
+                    this.role = 1;
+                this.selection_made = true;
+            }
+            this.game.input_event_subscription_manager.release_exclusive(this.si, event.type);
+        }
+    }
+
+    destroy() {
+        this.game.input_event_subscription_manager.remove_subscriber(this.si);
+        this.host.destroy();
+        this.guest.destroy();
+    }
+}
+
+class SnakeGame_Multiplayer_Wait extends UI {
+    constructor(game_) {
+        if (!game_ instanceof SnakeGame)
+            throw "Non-SnakeGame parameter error";
+        super(game_, 1.0, true);
+        var color;
+        if (this.game.multiplayer_role == 0)
+            color = snake_color;
+        else
+            color = snake_2_color;
+        this.message = new Colored_Sprite(0, 0, this.game.canvas.width, this.game.canvas.height, color.r, color.g, color.b, color.a);
+        this.message.attach_text(new Text_specs("Waiting for connection…", 60, "Helvetica"));
+        this.wait_complete = false;
+    }
+
+    draw() {
+        this.message.draw();
+    }
+
+    destroy() {
+        this.message.destroy();
     }
 }
 
@@ -672,7 +772,14 @@ class SnakeGame extends Game {
         this.refresh_count = 0;
         this.end_game_snake_hit = false;
         this.end_game_snake_2_hit = false;
-        this.single_player = true;
+        this.game_mode = -1;
+        this.multiplayer_role = -1;
+        this.host_player_peer = null;
+        this.guest_player_peer = null;
+        this.host_to_guest_connection = null;
+        this.guest_to_host_connection = null;
+        this.host_data_queue = null;
+        this.guest_data_queue = null;
     }
 
     init() {
@@ -681,20 +788,23 @@ class SnakeGame extends Game {
     }
 
     load() {
-        this.ui_stack.push(new SnakeGame_Scoreboards(this, this.single_player));
+        this.ui_stack.push(new SnakeGame_Scoreboards(this, this.game_mode == 1));
         playgrid = new PlayGrid();
         foods = new Array();
         snakes.push(new Snake("Player 1"));
-        if (!this.single_player)
+        if (this.game_mode != 1)
             snakes.push(new Snake_2("Player 2"));
-        for (var i = 0; i < 10; i++)
-            FoodSprite.create_ramdom_food();
+        if (!(this.game_mode == 0 && this.multiplayer_role == 1))
+            for (var i = 0; i < 10; i++)
+                FoodSprite.create_ramdom_food();
         this.refresh_count = 0;
+        if (this.game_mode == 0 && this.multiplayer_role == 0)
+            this.send_host_status();
     }
 
     deload() {
         super.deload();
-        if (this.single_player) {
+        if (this.game_mode == 1) {
             alert("Game over, your final score is " + this.scores[0] + ".");
         } else {
             if (this.end_game_snake_hit && this.end_game_snake_2_hit) {
@@ -718,29 +828,130 @@ class SnakeGame extends Game {
         this.end_game_snake_2_hit = false;
     }
 
-    update() {
-        super.update();
-        this.refresh_count++;
-        if (this.refresh_count % 30 == 0) {
-            for (var i = 0; i < snakes.length; i++)
-                snakes[i].pre_update();
-            CollidableGObject.CGO_update();
-            var stop = false;
-            for (var i = 0; i < snakes.length; i++)
-                if (snakes[i].stop) {
-                    stop = true;
+    send_host_status() {
+        if (this.game_mode == 0 && this.multiplayer_role == 0) {
+            this.host_to_guest_connection.send({ 'class': "FSL", 'L': foods.length });
+            for (var i = 0; i < foods.length; i++) {
+                if (foods[i] instanceof SpoiledFoodSprite)
+                    this.host_to_guest_connection.send({ 'class': "SFS", 'I': i, 'R': foods[i].row, 'C': foods[i].col });
+                else
+                    this.host_to_guest_connection.send({ 'class': "FS", 'I': i, 'R': foods[i].row, 'C': foods[i].col });
+            }
+            for (var i = 0; i < snakes.length; i++) {
+                this.host_to_guest_connection.send({ 'class': "SNL", 'I': i, 'L': snakes[i].snake_sprites.length });
+                for (var j = 0; j < snakes[i].snake_sprites.length; j++)
+                    this.host_to_guest_connection.send({ 'class': "SN", 'I': i, 'J': j, 'R': snakes[i].snake_sprites[j].row, 'C': snakes[i].snake_sprites[j].col });
+                this.host_to_guest_connection.send({ 'class': "SNS", 'I': i, 'S': snakes[i].score });
+            }
+        }
+        this.host_to_guest_connection.send({ 'class': "end" });
+    }
+
+    handle_data_queue() {
+        if (this.game_mode == 0 && this.multiplayer_role == 0) {
+            for (var i = this.host_data_queue.length - 1; i >= 0; i--) {
+                var data = this.host_data_queue.splice(0, 1)[0];
+                switch (data.class) {
+                    case "DIR": {
+                        snakes[1].change_direction(data.D);
+                        break;
+                    } default:
+                        console.log("Unknown class");
+                }
+            }
+        } else if (this.game_mode == 0 && this.multiplayer_role == 1) {
+            var length = 0;
+            for (var i = 0; i < this.guest_data_queue.length; i++) {
+                length++;
+                if (this.guest_data_queue[i].class == "end")
                     break;
-                } if (stop) for (var i = 0; i < snakes.length; i++) snakes[i].stop_moving();
+            }
+            var stop_flag = false;
+            for (var i = this.guest_data_queue.length - 1; i >= 0; i--) {
+                if (stop_flag)
+                    break;
+                var data = this.guest_data_queue.splice(0, 1)[0];
+                switch (data.class) {
+                    case "FSL": {
+                        while (foods.length < data.L)
+                            foods.push(new FoodSprite(0, 0));
+                        while (foods.length > data.L)
+                            foods.splice(foods.length - 1, 1)[0].destroy();
+                        break;
+                    } case "SFS": {
+                        if (!(foods[data.I] instanceof SpoiledFoodSprite)) {
+                            var cache = foods[data.I];
+                            foods[data.I] = new SpoiledFoodSprite(data.R, data.C);
+                            cache.destroy();
+                        }
+                        foods[data.I].move_to({ 'row': data.R, 'col': data.C });
+                        break;
+                    } case "FS": {
+                        if (foods[data.I] instanceof SpoiledFoodSprite) {
+                            var cache = foods[data.I];
+                            foods[data.I] = new FoodSprite(data.R, data.C);
+                            cache.destroy();
+                        }
+                        foods[data.I].move_to({ 'row': data.R, 'col': data.C });
+                        break;
+                    } case "SNL": {
+                        while (snakes[data.I].snake_sprites.length < data.L)
+                            snakes[data.I].add_tail();
+                        while (snakes[data.I].snake_sprites.length > data.L)
+                            snakes[data.I].delete_tail();
+                        break;
+                    } case "SN": {
+                        snakes[data.I].snake_sprites[data.J].move_to({ 'row': data.R, 'col': data.C });
+                        break;
+                    } case "SNS": {
+                        snakes[data.I].score = data.S;
+                        this.scores[data.I] = data.S;
+                        break;
+                    } case "end": {
+                        stop_flag = true;
+                        break;
+                    } default:
+                        console.log("Unknown class");
+                }
+            }
+        }
+    }
+
+    update() {
+        if (!(this.game_mode == 0 && this.multiplayer_role == 1)) {
+            if (this.game_mode == 0 && this.multiplayer_role == 0)
+                this.handle_data_queue();
+            super.update();
+            this.refresh_count++;
+            if (this.refresh_count % 30 == 0) {
+                for (var i = 0; i < snakes.length; i++)
+                    snakes[i].pre_update();
+                CollidableGObject.CGO_update();
+                var stop = false;
+                for (var i = 0; i < snakes.length; i++)
+                    if (snakes[i].stop) {
+                        stop = true;
+                        break;
+                    } if (stop) for (var i = 0; i < snakes.length; i++) snakes[i].stop_moving();
+                for (var i = 0; i < snakes.length; i++)
+                    snakes[i].update();
+                for (var i = 0; i < foods.length; i++)
+                    foods[i].update();
+                if (this.refresh_count % 600 == 0)
+                    SpoiledFoodSprite.create_ramdom_food();
+                this.scores[0] = snakes[0].score;
+                if (this.game_mode != 1)
+                    this.scores[1] = snakes[1].score;
+                if (this.game_mode == 0 && this.multiplayer_role == 0)
+                    this.send_host_status();
+            }
+        } else {
+            this.handle_data_queue();
             for (var i = 0; i < snakes.length; i++)
                 snakes[i].update();
             for (var i = 0; i < foods.length; i++)
                 foods[i].update();
         }
-        if (this.refresh_count % 600 == 0)
-            SpoiledFoodSprite.create_ramdom_food();
-        this.scores[0] = snakes[0].score;
-        if (!this.single_player)
-            this.scores[1] = snakes[1].score;
     }
 
     draw() {
@@ -756,7 +967,58 @@ class SnakeGame extends Game {
     ui_loop() {
         if (this.ui_stack.stack[0] instanceof SnakeGame_ModeSelection) {
             if (this.ui_stack.stack[0].selection_made) {
-                this.single_player = this.ui_stack.stack[0].single_player;
+                this.game_mode = this.ui_stack.stack[0].game_mode;
+                this.ui_stack.deload();
+                if (this.game_mode == 0)
+                    this.ui_stack.push(new SnakeGame_Multiplayer_Role_Select(this));
+                else {
+                    var t = this;
+                    var restart_ = function () {
+                        t.stop_ui_loop();
+                        t.load();
+                        t.start_loop();
+                        t.start_ui_loop();
+                    }; restart_();
+                }
+            }
+        }
+        if (this.ui_stack.stack[0] instanceof SnakeGame_Multiplayer_Role_Select) {
+            if (this.ui_stack.stack[0].selection_made) {
+                this.multiplayer_role = this.ui_stack.stack[0].role;
+                this.ui_stack.deload();
+                this.ui_stack.push(new SnakeGame_Multiplayer_Wait(this));
+                if (this.multiplayer_role == 0) {
+                    this.host_data_queue = new Array();
+                    this.host_player_peer = new Peer('SNAKE_HOST', { key: 'dxw1vi0imcth85mi' });
+                    this.host_to_guest_connection = this.host_player_peer.connect('SNAKE_GUEST');
+                    var t = this;
+                    this.host_to_guest_connection.on('data', function (data) {
+                        t.host_to_guest_connection.send('Acknowledgement received');
+                        if (!t.ui_stack.stack[0].wait_complete)
+                            t.ui_stack.stack[0].wait_complete = true;
+                        if (data.class)
+                            t.host_data_queue.push(data);
+                    });
+                }
+                else {
+                    this.guest_data_queue = new Array();
+                    this.guest_player_peer = new Peer('SNAKE_GUEST', { key: 'dxw1vi0imcth85mi' });
+                    var t = this;
+                    this.guest_player_peer.on('connection', function (conn) {
+                        t.guest_to_host_connection = conn;
+                        conn.on('open', function () { conn.send("Request received"); });
+                        conn.on('data', function (data) {
+                            if (!t.ui_stack.stack[0].wait_complete)
+                                t.ui_stack.stack[0].wait_complete = true;
+                            if (data.class)
+                                t.guest_data_queue.push(data);
+                        });
+                    });
+                }
+            }
+        }
+        if (this.ui_stack.stack[0] instanceof SnakeGame_Multiplayer_Wait) {
+            if (this.ui_stack.stack[0].wait_complete) {
                 this.ui_stack.deload();
                 var t = this;
                 var restart_ = function () {
