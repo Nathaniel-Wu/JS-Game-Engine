@@ -80,7 +80,9 @@ class FoodSprite extends PlaySprite {
             }
         s.add_tail();
         CollidableGObject.rm_CollidableGObject_instance_ref(this.CollidableGObject_id);
-        FoodSprite.create_ramdom_food();
+        FoodSprite.create_random_food();
+        if (game.game_mode == 0 && game.multiplayer_role == 0)
+            this.food_change_flag = true;
     }
 
     assign_random_index() {
@@ -120,7 +122,7 @@ class FoodSprite extends PlaySprite {
         return { 'row': row, 'col': col };
     }
 
-    static create_ramdom_food() {
+    static create_random_food() {
         var f = new FoodSprite(0, 0);
         f.assign_random_index();
         foods.push(f);
@@ -181,6 +183,8 @@ class SpoiledFoodSprite extends FoodSprite {
             }
         s.delete_tail();
         CollidableGObject.rm_CollidableGObject_instance_ref(this.CollidableGObject_id);
+        if (game.game_mode == 0 && game.multiplayer_role == 0)
+            this.food_change_flag = true;
     }
 
     update() {
@@ -198,7 +202,7 @@ class SpoiledFoodSprite extends FoodSprite {
         }
     }
 
-    static create_ramdom_food() {
+    static create_random_food() {
         var f = new SpoiledFoodSprite(0, 0);
         f.assign_random_index();
         foods.push(f);
@@ -780,6 +784,7 @@ class SnakeGame extends Game {
         this.guest_to_host_connection = null;
         this.host_data_queue = null;
         this.guest_data_queue = null;
+        this.food_change_flag = false;
     }
 
     init() {
@@ -796,7 +801,9 @@ class SnakeGame extends Game {
             snakes.push(new Snake_2("Player 2"));
         if (!(this.game_mode == 0 && this.multiplayer_role == 1))
             for (var i = 0; i < 10; i++)
-                FoodSprite.create_ramdom_food();
+                FoodSprite.create_random_food();
+        if (game.game_mode == 0 && game.multiplayer_role == 0)
+            this.food_change_flag = true;
         this.refresh_count = 0;
         if (this.game_mode == 0 && this.multiplayer_role == 0)
             this.send_host_status();
@@ -830,12 +837,15 @@ class SnakeGame extends Game {
 
     send_host_status() {
         if (this.game_mode == 0 && this.multiplayer_role == 0) {
-            this.host_to_guest_connection.send({ 'class': "FSL", 'L': foods.length });
-            for (var i = 0; i < foods.length; i++) {
-                if (foods[i] instanceof SpoiledFoodSprite)
-                    this.host_to_guest_connection.send({ 'class': "SFS", 'I': i, 'R': foods[i].row, 'C': foods[i].col });
-                else
-                    this.host_to_guest_connection.send({ 'class': "FS", 'I': i, 'R': foods[i].row, 'C': foods[i].col });
+            if (this.food_change_flag) {
+                this.host_to_guest_connection.send({ 'class': "FSL", 'L': foods.length });
+                for (var i = 0; i < foods.length; i++) {
+                    if (foods[i] instanceof SpoiledFoodSprite)
+                        this.host_to_guest_connection.send({ 'class': "SFS", 'I': i, 'R': foods[i].row, 'C': foods[i].col });
+                    else
+                        this.host_to_guest_connection.send({ 'class': "FS", 'I': i, 'R': foods[i].row, 'C': foods[i].col });
+                }
+                this.food_change_flag == false;
             }
             for (var i = 0; i < snakes.length; i++) {
                 this.host_to_guest_connection.send({ 'class': "SNL", 'I': i, 'L': snakes[i].snake_sprites.length });
@@ -867,7 +877,7 @@ class SnakeGame extends Game {
                     break;
             }
             var stop_flag = false;
-            for (var i = this.guest_data_queue.length - 1; i >= 0; i--) {
+            for (var i = length - 1; i >= 0; i--) {
                 if (stop_flag)
                     break;
                 var data = this.guest_data_queue.splice(0, 1)[0];
@@ -938,7 +948,9 @@ class SnakeGame extends Game {
                 for (var i = 0; i < foods.length; i++)
                     foods[i].update();
                 if (this.refresh_count % 600 == 0)
-                    SpoiledFoodSprite.create_ramdom_food();
+                    SpoiledFoodSprite.create_random_food();
+                if (game.game_mode == 0 && game.multiplayer_role == 0)
+                    this.food_change_flag = true;
                 this.scores[0] = snakes[0].score;
                 if (this.game_mode != 1)
                     this.scores[1] = snakes[1].score;
