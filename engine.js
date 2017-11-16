@@ -295,8 +295,9 @@ class Utilities {
     }
 
     static wait(test_func, expected_value, check_interval, callback) {
+        var wait_ = Utilities.wait;
         while (test_func() !== expected_value) {
-            setTimeout(function () { wait(test_func, expected_value, check_interval, callback); }, check_interval);
+            setTimeout(function () { wait_(test_func, expected_value, check_interval, callback); }, check_interval);
             return;
         } callback();
     }
