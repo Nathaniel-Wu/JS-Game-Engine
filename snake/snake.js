@@ -137,7 +137,8 @@ class FoodSprite extends PlaySprite {
 const spoiled_food_color = { r: 0, g: 0, b: 255, a: 255 };
 class SpoiledFoodSprite extends FoodSprite {
     constructor(row, col) {
-        super(row, col, spoiled_food_color);
+        super(row, col);
+        this.attach_color(spoiled_food_color.r, spoiled_food_color.g, spoiled_food_color.b, spoiled_food_color.a);
         this.cycle = 15;
         this.draw_count = -1;
     }
