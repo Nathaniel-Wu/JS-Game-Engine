@@ -2468,6 +2468,11 @@ class NetworkAgent {
     connect(id, callback) {
         this.connection = this.peer.connect(id);
         var t = this;
+        this.peer.on('error', function (error) {
+            setTimeout(function () {
+                t.connect(id, callback);
+            }, 500);
+        });
         this.connection.on('data', function (data) {
             if (data !== "acknowledged")
                 t.connection.send("acknowledged");
@@ -2489,7 +2494,7 @@ class NetworkAgent {
                 if (data.class)
                     t.data_queue.push(data);
             });
-        })
+        });
     }
 
     send(message) {
