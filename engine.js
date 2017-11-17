@@ -7,10 +7,10 @@ var ui_context;
 var input_event_subscription_manager;
 
 //---------------------------------------------- Game
-/*var loop_count = 0;
+var loop_count = 0;
 var frame_time_sum = 0;
 var frame_time_max = -1;
-var frame_time_min = 1000;*/
+var frame_time_min = 1000;
 class Game {
     constructor(framerate) {
         this.canvas = null;
@@ -29,6 +29,15 @@ class Game {
         this.ui_framerate = framerate;
         this.ui_inter_frame = 1000 / this.ui_framerate;
         this.drawing = false;
+        this.frame_time_log = false;
+    }
+
+    turn_on_frame_time_log() {
+        this.frame_time_log = true;
+    }
+
+    turn_off_frame_time_log() {
+        this.frame_time_log = false;
     }
 
     start_ui_only() {
@@ -112,26 +121,30 @@ class Game {
 
     draw() { this.context.clearRect(0, 0, this.canvas.width, this.canvas.height); }
 
-    loop() {/*
-        loop_count++;
-        var frame_time = (new Date()).getTime();*/
+    loop() {
+        if (this.frame_time_log) {
+            loop_count++;
+            var frame_time = (new Date()).getTime();
+        }
         this.update();
         this.drawing = true;
         this.draw();
-        this.drawing = false;/*
-        frame_time = (new Date()).getTime() - frame_time;
-        if (frame_time < frame_time_min)
-            frame_time_min = frame_time;
-        if (frame_time > frame_time_max)
-            frame_time_max = frame_time;
-        frame_time_sum += frame_time;
-        if (loop_count == 60) {
-            console.info("max frame time: " + frame_time_max + "ms; min frame time: " + frame_time_min + "ms; average: " + frame_time_sum / 60 + "ms");
-            loop_count = 0;
-            frame_time_sum = 0;
-            frame_time_max = -1;
-            frame_time_min = 1000;
-        }*/
+        this.drawing = false;
+        if (this.frame_time_log) {
+            frame_time = (new Date()).getTime() - frame_time;
+            if (frame_time < frame_time_min)
+                frame_time_min = frame_time;
+            if (frame_time > frame_time_max)
+                frame_time_max = frame_time;
+            frame_time_sum += frame_time;
+            if (loop_count >= this.framerate) {
+                console.log("max frame time: " + frame_time_max + "ms; min frame time: " + frame_time_min + "ms; average: " + frame_time_sum / 60 + "ms");
+                loop_count = 0;
+                frame_time_sum = 0;
+                frame_time_max = -1;
+                frame_time_min = 1000;
+            }
+        }
     }
 
     start_loop() {
