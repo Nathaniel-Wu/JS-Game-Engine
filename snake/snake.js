@@ -914,7 +914,7 @@ class SnakeGame extends Game {
                     } start_end_game();
                 }
                 if (this.game_mode == 1) {
-                    this.ui_stack.push(new SnakeGame_EndGameMessage(this, "You Losed!"));
+                    this.ui_stack.push(new SnakeGame_EndGameMessage(this, "You final score is " + this.scores[0]));
                     start_end_game();
                 } else {
                     if (this.end_game_snake_hit && this.end_game_snake_2_hit) {
