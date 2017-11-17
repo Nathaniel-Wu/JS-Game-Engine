@@ -30,9 +30,18 @@ class PlayGrid extends Grid {
     }
 }
 
-class PlaySprite extends GridSprite {
-    constructor(row, col) {
-        super(row, col, playgrid);
+class PlaySprite extends ColoredGridSprite {
+    constructor(row, col, color) {
+        super(row, col, playgrid, color.r, color.g, color.b, color.a);
+    }
+
+    actual_draw() {
+        super.actual_draw();
+        context.beginPath();
+        context.lineWidth = "1";
+        context.strokeStyle = "black";
+        context.rect(this.coord.x, this.coord.y, this.w, this.h);
+        context.stroke();
     }
 }
 
@@ -41,7 +50,7 @@ var foods;
 const food_color = { r: 255, g: 0, b: 0, a: 255 };
 class FoodSprite extends PlaySprite {
     constructor(row, col) {
-        super(row, col);
+        super(row, col, food_color);
         if (game.game_mode == 0 && game.multiplayer_role == 1)
             this.movable = true;
         else
@@ -58,16 +67,6 @@ class FoodSprite extends PlaySprite {
             if (collision.into.collides(this))
                 collision.into.resolve(new Collision(null, this, CPType.PASSIVE));
         }
-    }
-
-    actual_draw() {
-        context.fillStyle = "rgba(" + food_color.r + "," + food_color.g + "," + food_color.b + "," + food_color.a + ")";
-        context.fillRect(this.coord.x, this.coord.y, this.w, this.h);
-        context.beginPath();
-        context.lineWidth = "1";
-        context.strokeStyle = "black";
-        context.rect(this.coord.x, this.coord.y, this.w, this.h);
-        context.stroke();
     }
 
     eat_by(s) {
@@ -138,7 +137,7 @@ class FoodSprite extends PlaySprite {
 const spoiled_food_color = { r: 0, g: 0, b: 255, a: 255 };
 class SpoiledFoodSprite extends FoodSprite {
     constructor(row, col) {
-        super(row, col);
+        super(row, col, spoiled_food_color);
         this.cycle = 15;
         this.draw_count = -1;
     }
@@ -162,15 +161,8 @@ class SpoiledFoodSprite extends FoodSprite {
                 draw = true;
         } else
             draw = true;
-        if (draw) {
-            context.fillStyle = "rgba(" + spoiled_food_color.r + "," + spoiled_food_color.g + "," + spoiled_food_color.b + "," + spoiled_food_color.a + ")";
-            context.fillRect(this.coord.x, this.coord.y, this.w, this.h);
-            context.beginPath();
-            context.lineWidth = "1";
-            context.strokeStyle = "black";
-            context.rect(this.coord.x, this.coord.y, this.w, this.h);
-            context.stroke();
-        }
+        if (draw)
+            super.actual_draw();
     }
 
     eat_by(s) {
@@ -214,17 +206,17 @@ class SpoiledFoodSprite extends FoodSprite {
 const DIR = { U: 0, D: 1, L: 2, R: 3 };
 class SnakeSprite extends PlaySprite {
     constructor(row, col, snake_instance, color) {
-        super(row, col);
+        super(row, col, color);
+        this.original_color = color;
         this.snake = snake_instance;
-        this.color = color;
     }
 
     move_prediction() {
         if (this.moveVect) {
             var index = this.grid.coord_to_index(new Coordinate(this.coord.x + this.moveVect.x, this.coord.y + this.moveVect.y));
-            return new SnakeSprite(index.row, index.col, this.grid, null);
+            return new SnakeSprite(index.row, index.col, this.grid, this.original_color);
         }
-        return new SnakeSprite(this.row, this.col, this.grid, null);
+        return new SnakeSprite(this.row, this.col, this.grid, this.original_color);
     }
 
     cancel_moving() {
@@ -298,21 +290,11 @@ class SnakeSprite extends PlaySprite {
     }
 
     actual_draw() {
-        var imagedata = context.createImageData(this.w, this.h);
-        if (this.color) {
-            if (this.is_snake_head()) {
-                context.fillStyle = "rgba(63,63,0," + this.color.a + ")";
-                context.fillRect(this.coord.x, this.coord.y, this.w, this.h);
-            } else {
-                context.fillStyle = "rgba(" + this.color.r + "," + this.color.g + "," + this.color.b + "," + this.color.a + ")";
-                context.fillRect(this.coord.x, this.coord.y, this.w, this.h);
-            }
-            context.beginPath();
-            context.lineWidth = "1";
-            context.strokeStyle = "black";
-            context.rect(this.coord.x, this.coord.y, this.w, this.h);
-            context.stroke();
-        }
+        if (this.is_snake_head())
+            this.attach_color(63, 63, 0, this.color.a);
+        else
+            this.attach_color(this.original_color.r, this.original_color.g, this.original_color.b, this.original_color.a);
+        super.actual_draw();
     }
 }
 
