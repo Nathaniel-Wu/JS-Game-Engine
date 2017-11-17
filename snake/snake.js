@@ -563,19 +563,19 @@ class Snake_2 extends Snake {
             this.input_event_subscription_manager.set_exclusive(this.si, event.type);
             switch (event.type) {
                 case IEType.UP: {
-                    game.guest_to_host_connection.send({ 'class': "DIR", 'D': DIR.U });
+                    game.guest_agent.send({ 'class': "DIR", 'D': DIR.U });
                     break;
                 }
                 case IEType.DOWN: {
-                    game.guest_to_host_connection.send({ 'class': "DIR", 'D': DIR.D });
+                    game.guest_agent.send({ 'class': "DIR", 'D': DIR.D });
                     break;
                 }
                 case IEType.LEFT: {
-                    game.guest_to_host_connection.send({ 'class': "DIR", 'D': DIR.L });
+                    game.guest_agent.send({ 'class': "DIR", 'D': DIR.L });
                     break;
                 }
                 case IEType.RIGHT: {
-                    game.guest_to_host_connection.send({ 'class': "DIR", 'D': DIR.R });
+                    game.guest_agent.send({ 'class': "DIR", 'D': DIR.R });
                     break;
                 }
             }
@@ -778,12 +778,8 @@ class SnakeGame extends Game {
         this.end_game_snake_2_hit = false;
         this.game_mode = -1;
         this.multiplayer_role = -1;
-        this.host_player_peer = null;
-        this.guest_player_peer = null;
-        this.host_to_guest_connection = null;
-        this.guest_to_host_connection = null;
-        this.host_data_queue = null;
-        this.guest_data_queue = null;
+        this.host_agent = null;
+        this.guest_agent = null;
         this.food_change_flag = false;
     }
 
@@ -835,32 +831,39 @@ class SnakeGame extends Game {
         this.end_game_snake_2_hit = false;
     }
 
+    close_network_agent() {
+        if (this.game_mode == 0 && this.multiplayer_role == 0)
+            this.host_agent.destroy();
+        else if (this.game_mode == 0 && this.multiplayer_role == 1)
+            this.guest_agent.destroy();
+    }
+
     send_host_status() {
         if (this.game_mode == 0 && this.multiplayer_role == 0) {
             if (this.food_change_flag) {
-                this.host_to_guest_connection.send({ 'class': "FSL", 'L': foods.length });
+                this.host_agent.send({ 'class': "FSL", 'L': foods.length });
                 for (var i = 0; i < foods.length; i++) {
                     if (foods[i] instanceof SpoiledFoodSprite)
-                        this.host_to_guest_connection.send({ 'class': "SFS", 'I': i, 'R': foods[i].row, 'C': foods[i].col });
+                        this.host_agent.send({ 'class': "SFS", 'I': i, 'R': foods[i].row, 'C': foods[i].col });
                     else
-                        this.host_to_guest_connection.send({ 'class': "FS", 'I': i, 'R': foods[i].row, 'C': foods[i].col });
+                        this.host_agent.send({ 'class': "FS", 'I': i, 'R': foods[i].row, 'C': foods[i].col });
                 }
                 this.food_change_flag == false;
             }
             for (var i = 0; i < snakes.length; i++) {
-                this.host_to_guest_connection.send({ 'class': "SNL", 'I': i, 'L': snakes[i].snake_sprites.length });
+                this.host_agent.send({ 'class': "SNL", 'I': i, 'L': snakes[i].snake_sprites.length });
                 for (var j = 0; j < snakes[i].snake_sprites.length; j++)
-                    this.host_to_guest_connection.send({ 'class': "SN", 'I': i, 'J': j, 'R': snakes[i].snake_sprites[j].row, 'C': snakes[i].snake_sprites[j].col });
-                this.host_to_guest_connection.send({ 'class': "SNS", 'I': i, 'S': snakes[i].score });
+                    this.host_agent.send({ 'class': "SN", 'I': i, 'J': j, 'R': snakes[i].snake_sprites[j].row, 'C': snakes[i].snake_sprites[j].col });
+                this.host_agent.send({ 'class': "SNS", 'I': i, 'S': snakes[i].score });
             }
         }
-        this.host_to_guest_connection.send({ 'class': "end" });
+        this.host_agent.send({ 'class': "end" });
     }
 
     handle_data_queue() {
         if (this.game_mode == 0 && this.multiplayer_role == 0) {
-            for (var i = this.host_data_queue.length - 1; i >= 0; i--) {
-                var data = this.host_data_queue.splice(0, 1)[0];
+            for (var i = this.host_agent.data_queue.length - 1; i >= 0; i--) {
+                var data = this.host_agent.data_queue.splice(0, 1)[0];
                 switch (data.class) {
                     case "DIR": {
                         snakes[1].change_direction(data.D);
@@ -871,16 +874,16 @@ class SnakeGame extends Game {
             }
         } else if (this.game_mode == 0 && this.multiplayer_role == 1) {
             var length = 0;
-            for (var i = 0; i < this.guest_data_queue.length; i++) {
+            for (var i = 0; i < this.guest_agent.data_queue.length; i++) {
                 length++;
-                if (this.guest_data_queue[i].class == "end")
+                if (this.guest_agent.data_queue[i].class == "end")
                     break;
             }
             var stop_flag = false;
             for (var i = length - 1; i >= 0; i--) {
                 if (stop_flag)
                     break;
-                var data = this.guest_data_queue.splice(0, 1)[0];
+                var data = this.guest_agent.data_queue.splice(0, 1)[0];
                 switch (data.class) {
                     case "FSL": {
                         while (foods.length < data.L)
@@ -999,33 +1002,17 @@ class SnakeGame extends Game {
                 this.multiplayer_role = this.ui_stack.stack[0].role;
                 this.ui_stack.deload();
                 this.ui_stack.push(new SnakeGame_Multiplayer_Wait(this));
-                if (this.multiplayer_role == 0) {
-                    this.host_data_queue = new Array();
-                    this.host_player_peer = new Peer('SNAKE_HOST', { key: 'dxw1vi0imcth85mi' });
-                    this.host_to_guest_connection = this.host_player_peer.connect('SNAKE_GUEST');
-                    var t = this;
-                    this.host_to_guest_connection.on('data', function (data) {
-                        t.host_to_guest_connection.send('Acknowledgement received');
-                        if (!t.ui_stack.stack[0].wait_complete)
-                            t.ui_stack.stack[0].wait_complete = true;
-                        if (data.class)
-                            t.host_data_queue.push(data);
-                    });
+                var t = this;
+                var waiting_for_connection_complete = function () {
+                    if (!t.ui_stack.stack[0].wait_complete)
+                        t.ui_stack.stack[0].wait_complete = true;
                 }
-                else {
-                    this.guest_data_queue = new Array();
-                    this.guest_player_peer = new Peer('SNAKE_GUEST', { key: 'dxw1vi0imcth85mi' });
-                    var t = this;
-                    this.guest_player_peer.on('connection', function (conn) {
-                        t.guest_to_host_connection = conn;
-                        conn.on('open', function () { conn.send("Request received"); });
-                        conn.on('data', function (data) {
-                            if (!t.ui_stack.stack[0].wait_complete)
-                                t.ui_stack.stack[0].wait_complete = true;
-                            if (data.class)
-                                t.guest_data_queue.push(data);
-                        });
-                    });
+                if (this.multiplayer_role == 0) {
+                    this.host_agent = new NetworkAgent('SNAKE_HOST', 'dxw1vi0imcth85mi');
+                    this.host_agent.connect('SNAKE_GUEST', waiting_for_connection_complete);
+                } else {
+                    this.guest_agent = new NetworkAgent('SNAKE_GUEST', 'dxw1vi0imcth85mi');
+                    this.guest_agent.receive_connection(waiting_for_connection_complete);
                 }
             }
         }
@@ -1049,3 +1036,4 @@ class SnakeGame extends Game {
 
 var game = new SnakeGame();
 game.start_ui_only();
+function closePeers() { game.closePeers(); }
