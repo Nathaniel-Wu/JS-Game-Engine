@@ -1817,6 +1817,31 @@ class GridSprite extends Sprite {
     }
 }
 
+class ColoredGridSprite extends GridSprite {
+    constructor(row, col, grid, r, g, b, a) {
+        super(row, col, grid);
+        this.color = null;
+        this.attach_color(r, g, b, a);
+    }
+
+    attach_texture(texture_id) { /*Disable texture*/ };
+
+    attach_color(r, g, b, a) {
+        if ((0 > r || r > 255) || (0 > g || g > 255) || (0 > b || b > 255) || (0 > a || a > 255))
+            throw "Invalid color error";
+        this.color = { 'r': r, 'g': g, 'b': b, 'a': a };
+    }
+
+    actual_draw() {
+        if (this.color) {
+            context.beginPath();
+            context.fillStyle = "rgba(" + this.color.r + "," + this.color.g + "," + this.color.b + "," + this.color.a + ")";
+            context.fillRect(this.coord.x, this.coord.y, this.w, this.h);
+        }
+        super.actual_draw();
+    }
+}
+
 //---------------------------------------------- World Node
 
 class WorldNode {
