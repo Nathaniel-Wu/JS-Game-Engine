@@ -16,13 +16,25 @@ Drag elements from sidebar and drop them to playground, mix each other to create
 
 A Snake-like game.
 
-Eat red normal food to make a snake grow, eat blue spoiled food to make a snake shrink.
+Eat red normal food to make a snake grow, eat blue spoiled food to make a snake shrink. Normal food stays on stage permanently unless eaten by snake, spoiled food will disappear automatically if not eaten within a certain amount of time.
 
-In single player mode, press arrow key to navigate; in multiplayer mode, press arrow key to navigate yellow-colored snake, press WASD to navigate cyan-colored snake.
+Game will be over if a snake collides with wall or another snake or itself; in multiplayer, winner is the one who didn't hit anything, or the one who has a higher score when both player hit something.
 
-Normal food stays on stage permanently unless eaten by snake, spoiled food will disappear automatically if not eaten within a certain amount of time.
+Game will restart the same mode automatically in 3 seconds after game over.
 
-Game will be over if a snake collides with wall or another snake or itself.
+In single player mode, press arrow key to navigate.
+
+In multiplayer (local) mode, press arrow key to navigate yellow-colored snake, press WASD to navigate cyan-colored snake.
+
+In multiplayer (network) mode, press arrow key to navigate your snake; if you play as host, your snake is yellow-colored, otherwise it's cyan-colored.
+
+**Important Note on Multiplayer (network)**
+
+You have to at least load two instances of this game to get this mode connected, on one instance you should select "Play as Host", on the other you should select "Play as Guest". Reload **both** instances if you happen to select the same option on both instances.
+
+It's using WebRTC, so it can only run on **Chrome** or **Firefox** at this point; it's also using WebSocket, but HTTPS security doesn't allow WebSocket, so it has to be loaded with **HTTP**.
+
+The peer-to-peer connection is setup by cloud service of PeerJS, game won't connect if either player isn't connected to the Internet.
 
 ##### 3. [Bubble Shooter R](https://pages.github.ncsu.edu/twu23/Engine/bubble_shooter)
 
