@@ -1033,6 +1033,6 @@ class SnakeGame extends Game {
 
 //---------------------------------------------- Run
 
-var game = new SnakeGame(60, 5);
+var game = new SnakeGame(60, 2);
 game.start_ui_only();
 function close_network_agent() { game.close_network_agent(); }
