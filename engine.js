@@ -241,6 +241,8 @@ class UIStack {
             this.stack[i].draw();
             if (this.stack[i].block) break;
         }
+        this.game.context.stroke();
+        this.game.ui_context.stroke();
     }
 }
 
@@ -294,12 +296,16 @@ class Utilities {
         return JSON.parse(httpReq.response);
     }
 
-    static wait(test_func, expected_value, check_interval, callback) {
-        var wait_ = Utilities.wait;
-        while (test_func() !== expected_value) {
-            setTimeout(function () { wait_(test_func, expected_value, check_interval, callback); }, check_interval);
+    static wait(trial, expected_value, check_interval, callback) {
+        while (trial() !== expected_value) {
+            setTimeout(function () { Utilities.wait(trial, expected_value, check_interval, callback); }, check_interval);
             return;
         } callback();
+    }
+
+    static sleep(time) {
+        var start = new Date().getTime();
+        while (new Date().getTime() - start < time) { }
     }
 }
 
