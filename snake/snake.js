@@ -605,12 +605,6 @@ class SnakeGame_ModeSelection extends UI {
         this.mpl.attach_text(new Text_specs("Multiplayer (local)", 60, "Helvetica"));
     }
 
-    draw() {
-        this.mpn.draw();
-        this.sp.draw();
-        this.mpl.draw();
-    }
-
     handle_input_event(event) {
         if (event.type == IEType.SELECT) {
             this.game.input_event_subscription_manager.set_exclusive(this.si, event.type);
@@ -627,12 +621,8 @@ class SnakeGame_ModeSelection extends UI {
         }
     }
 
-    destroy() {
-        this.game.input_event_subscription_manager.remove_subscriber(this.si);
-        this.mpn.destroy();
-        this.sp.destroy();
-        this.mpl.destroy();
-    }
+    actual_draw() { this.mpn.draw(); this.sp.draw(); this.mpl.draw(); }
+    destroy() { this.game.input_event_subscription_manager.remove_subscriber(this.si); this.mpn.destroy(); this.sp.destroy(); this.mpl.destroy(); }
 }
 
 class SnakeGame_Multiplayer_Role_Select extends UI {
@@ -649,11 +639,6 @@ class SnakeGame_Multiplayer_Role_Select extends UI {
         this.guest.attach_text(new Text_specs("Play as Guest", 60, "Helvetica"));
     }
 
-    draw() {
-        this.host.draw();
-        this.guest.draw();
-    }
-
     handle_input_event(event) {
         if (event.type == IEType.SELECT) {
             this.game.input_event_subscription_manager.set_exclusive(this.si, event.type);
@@ -668,11 +653,8 @@ class SnakeGame_Multiplayer_Role_Select extends UI {
         }
     }
 
-    destroy() {
-        this.game.input_event_subscription_manager.remove_subscriber(this.si);
-        this.host.destroy();
-        this.guest.destroy();
-    }
+    actual_draw() { this.host.draw(); this.guest.draw(); }
+    destroy() { this.game.input_event_subscription_manager.remove_subscriber(this.si); this.host.destroy(); this.guest.destroy(); }
 }
 
 class SnakeGame_Multiplayer_Wait extends UI {
@@ -690,13 +672,8 @@ class SnakeGame_Multiplayer_Wait extends UI {
         this.wait_complete = false;
     }
 
-    draw() {
-        this.message.draw();
-    }
-
-    destroy() {
-        this.message.destroy();
-    }
+    actual_draw() { this.message.draw(); }
+    destroy() { this.message.destroy(); }
 }
 
 class ScoreBoard extends Sprite {
@@ -707,9 +684,9 @@ class ScoreBoard extends Sprite {
         this.score = 0;
     }
 
-    draw() {
+    actual_draw() {
         this.attach_text(new Text_specs(this.name + ": " + this.score, 35, "Helvetica"));
-        super.draw();
+        super.actual_draw();
     }
 }
 
@@ -736,24 +713,32 @@ class SnakeGame_Scoreboards extends UI {
         }
     }
 
-    actual_draw() {
-        this.scoreboards[0].draw();
-        if (!this.single_player)
-            this.scoreboards[1].draw();
+    actual_draw() { this.scoreboards[0].draw(); if (!this.single_player) this.scoreboards[1].draw(); }
+    destroy() { this.scoreboards[0].destroy(); if (!this.single_player) this.scoreboards[1].destroy(); }
+}
+
+class SnakeGame_EndGameMessage extends UI {
+    constructor(game_, message) {
+        if (!game_ instanceof SnakeGame)
+            throw "Non-SnakeGame parameter error";
+        super(game_, 1.0, true);
+        var color = snake_color;
+        if (this.game.game_mode == 0 && this.game.multiplayer_role == 1)
+            color = snake_2_color;
+        this.board = new Colored_Sprite(0, 0, this.game.canvas.width, this.game.canvas.height, color.r, color.g, color.b, color.a);
+        this.board.attach_text(new Text_specs(message, 60, "Helvetica"));
     }
 
-    destroy() {
-        this.scoreboards[0].destroy();
-        if (!this.single_player)
-            this.scoreboards[1].destroy();
-    }
+    actual_draw() { this.board.draw(); }
+    destroy() { this.board.destroy(); }
 }
 
 //---------------------------------------------- Game Design
 
+const end_game_time = 3000;
 class SnakeGame extends Game {
-    constructor() {
-        super(60);
+    constructor(framerate, snake_movement_rate) {
+        super(framerate);
         this.scores = [0, 0];
         this.refresh_count = 0;
         this.end_game_snake_hit = false;
@@ -763,6 +748,9 @@ class SnakeGame extends Game {
         this.host_agent = null;
         this.guest_agent = null;
         this.food_change_flag = false;
+        this.snake_move_interval = Math.round(1000 / snake_movement_rate / this.inter_frame);
+        this.end_game = false;
+        this.end_game_start_time;
     }
 
     init() {
@@ -789,21 +777,6 @@ class SnakeGame extends Game {
 
     deload() {
         super.deload();
-        if (this.game_mode == 1) {
-            alert("Game over, your final score is " + this.scores[0] + ".");
-        } else {
-            if (this.end_game_snake_hit && this.end_game_snake_2_hit) {
-                if (this.scores[0] < this.scores[1])
-                    alert("Player 2 wins.");
-                else if (this.scores[0] == this.scores[1])
-                    alert("Tie.");
-                else
-                    alert("Player 1 wins.");
-            } else if (this.end_game_snake_hit)
-                alert("Player 2 wins");
-            else
-                alert("Player 1 wins");
-        }
         playgrid.destroy();
         for (var i = foods.length - 1; i >= 0; i--)
             foods.splice(0, 1)[0].destroy();
@@ -811,6 +784,10 @@ class SnakeGame extends Game {
             snakes.splice(0, 1)[0].destroy();
         this.end_game_snake_hit = false;
         this.end_game_snake_2_hit = false;
+        this.end_game = false;
+        this.end_game_start_time = null;
+        if (this.host_agent)
+            this.host_agent.send({ 'class': "POP" });
     }
 
     close_network_agent() {
@@ -905,6 +882,12 @@ class SnakeGame extends Game {
                     } case "end": {
                         stop_flag = true;
                         break;
+                    } case "EGM": {
+                        this.ui_stack.push(new SnakeGame_EndGameMessage(this, data.M));
+                        break;
+                    } case "POP": {
+                        this.ui_stack.pop().destroy();
+                        break;
                     } default:
                         console.log("Unknown class");
                 }
@@ -916,9 +899,43 @@ class SnakeGame extends Game {
         if (!(this.game_mode == 0 && this.multiplayer_role == 1)) {
             if (this.game_mode == 0 && this.multiplayer_role == 0)
                 this.handle_data_queue();
+            if (this.restart_flag && !this.end_game) {
+                var t = this;
+                var start_end_game = function () {
+                    t.end_game = true;
+                    t.end_game_start_time = new Date().getTime();
+                }
+                var show_multiplayer_message = function (local_msg, net_host_msg, net_guest_msg) {
+                    if (t.game_mode == 2)
+                        t.ui_stack.push(new SnakeGame_EndGameMessage(t, local_msg));
+                    else if (t.game_mode == 0 && t.multiplayer_role == 0) {
+                        t.ui_stack.push(new SnakeGame_EndGameMessage(t, net_host_msg));
+                        t.host_agent.send({ 'class': "EGM", 'M': net_guest_msg });
+                    } start_end_game();
+                }
+                if (this.game_mode == 1) {
+                    this.ui_stack.push(new SnakeGame_EndGameMessage(this, "You Losed!"));
+                    start_end_game();
+                } else {
+                    if (this.end_game_snake_hit && this.end_game_snake_2_hit) {
+                        if (this.scores[0] < this.scores[1])
+                            show_multiplayer_message("Player 2 Wins", "You Lose", "You Win");
+                        else if (this.scores[0] == this.scores[1])
+                            show_multiplayer_message("Tie", "Tie", "Tie");
+                        else
+                            show_multiplayer_message("Player 1 Wins", "You Win", "You Lose");
+                    } else if (this.end_game_snake_hit)
+                        show_multiplayer_message("Player 2 Wins", "You Lose", "You Win");
+                    else
+                        show_multiplayer_message("Player 1 Wins", "You Win", "You Lose");
+                }
+            }
+            if (this.end_game)
+                if (new Date().getTime() - this.end_game_start_time < end_game_time)
+                    return;
             super.update();
             this.refresh_count++;
-            if (this.refresh_count % 30 == 0) {
+            if (this.refresh_count % this.snake_move_interval == 0) {
                 for (var i = 0; i < snakes.length; i++)
                     snakes[i].pre_update();
                 CollidableGObject.CGO_update();
@@ -932,7 +949,7 @@ class SnakeGame extends Game {
                     snakes[i].update();
                 for (var i = 0; i < foods.length; i++)
                     foods[i].update();
-                if (this.refresh_count % 600 == 0)
+                if (this.refresh_count % (this.snake_move_interval * 20) == 0)
                     SpoiledFoodSprite.create_random_food();
                 if (game.game_mode == 0 && game.multiplayer_role == 0)
                     this.food_change_flag = true;
@@ -1016,6 +1033,6 @@ class SnakeGame extends Game {
 
 //---------------------------------------------- Run
 
-var game = new SnakeGame();
+var game = new SnakeGame(60, 5);
 game.start_ui_only();
-function closePeers() { game.closePeers(); }
+function close_network_agent() { game.close_network_agent(); }
