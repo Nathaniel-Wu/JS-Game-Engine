@@ -2424,3 +2424,49 @@ class ParticleManager {
             this.active_particles[i].draw();
     }
 }
+
+//---------------------------------------------- Networking
+
+class NetworkAgent {
+    constructor(id, key) {
+        this.peer = new Peer(id, { 'key': key });
+        this.connection = null;
+        this.data_queue = new Array();
+    }
+
+    connect(id, callback) {
+        this.connection = this.peer.connect(id);
+        var t = this;
+        this.connection.on('data', function (data) {
+            if (data !== "acknowledged")
+                t.connection.send("acknowledged");
+            callback(data);
+            if (data.class)
+                t.data_queue.push(data);
+        });
+    }
+
+    receive_connection(callback) {
+        var t = this;
+        this.peer.on('connection', function (connection) {
+            t.connection = connection;
+            t.connection.on('open', function () { t.connection.send("connection received"); });
+            t.connection.on('data', function (data) {
+                if (data !== "acknowledged")
+                    t.connection.send("acknowledged");
+                callback(data);
+                if (data.class)
+                    t.data_queue.push(data);
+            });
+        })
+    }
+
+    send(message) {
+        if (this.connection)
+            this.connection.send(message);
+    }
+
+    destroy() {
+        this.peer.destroy();
+    }
+}
