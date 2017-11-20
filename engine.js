@@ -1738,7 +1738,7 @@ class SpriteSheet extends Sprite {
 }
 
 //---------------------------------------------- Grid
-
+var a_star_go_through = false;
 class Grid extends CollidableGObject {
     constructor(row, col) {
         var x = 0, y = 0, w = canvas.width, h = canvas.height;
@@ -1801,6 +1801,8 @@ class Grid extends CollidableGObject {
                         continue;
                     var position_ij = { 'row': position.row + i, 'col': position.col + j };
                     if (closed_list.get_2d(position_ij.row, position_ij.col))
+                        continue;
+                    if ((!a_star_go_through) && Math.abs(i) == 1 && Math.abs(j) == 1 && closed_list.get_2d(position_ij.row, position_ij.col - j) && closed_list.get_2d(position_ij.row - i, position_ij.col))
                         continue;
                     positions.push(position_ij);
                 }
