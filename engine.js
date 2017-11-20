@@ -368,6 +368,27 @@ class bitmap {
     }
 }
 
+class bitmap_2d {
+    constructor(row, col) {
+        super(row * col);
+        this.row = row;
+        this.col = col;
+        this.bits_set = 0;
+    }
+    validate_index(row, col) {
+        if (!Utilities.isInteger(row) || !Utilities.isInteger(col))
+            throw "Non-integer parameter error";
+        if (0 > row || row >= this.row || 0 > col || col >= this.col)
+            return false;
+        return true;
+    }
+    get_2d(row, col) { this.get(row * this.row + col); }
+    set_2d(row, col, bool) { this.set(row * this.row + col, bool); if (bool) this.bits_set++; else this.bits_set--; }
+    flip_2d(row, col) { this.flip(row * this.row + col); if (this.get_2d(row, col)) this.bits_set++; else this.bits_set--; }
+    fill() { super.fill(); this.bits_set = this.row * this.col; }
+    clear() { super.clear(); this.bits_set = 0; }
+}
+
 //---------------------------------------------- Vector
 
 class Vector {
@@ -1764,6 +1785,103 @@ class Grid extends CollidableGObject {
         if (!this.validate_index(r, c))
             throw "Invalid index parameter error";
         return { row: r, col: c };
+    }
+
+    findPath(position_1, position_2, closed_list) {
+        if ((!position_1.row) || (position_1.col) || (position_2.row) || (position_.col) || this.validate_index(position_1.row, position_1.col) || this.validate_index(position_2.row, position_2.col))
+            throw "Invalid position error";
+        if (!closed_list instanceof bitmap_2d)
+            throw "Non-bitmap_2d parameter error";
+        if (closed_list.row != this.row || closed_list.col != this.col)
+            throw "bitmap_2d size error";
+        var t = this;
+        var get_adjacent_positions = function (position) {
+            var positions = new Array();
+            for (var i = -1; i <= 1; i++)
+                for (var j = -1; j <= 1; j++) {
+                    if ((i == 0 && j == 0) || (position.row + i < 0) || (position.row + i >= t.row) || (position.col + j < 0) || (position.col + j >= t.col))
+                        continue;
+                    var position_ij = { 'row': position.row + i, 'col': position.col + j };
+                    if (closed_list.get_2d(position_ij.row, position_ij.col))
+                        continue;
+                    positions.push(position_ij);
+                }
+            return positions;
+        }
+        var is_adjacent = function (position_1_, position_2_) {
+            var delta_row = position_1_.row - position_2_.row;
+            var delta_col = position_1_.col - position_2_.col;
+            if ((-1 <= delta_row && delta_row <= 1) && (-1 <= delta_col && delta_col <= 1))
+                return true;
+            return false;
+        }
+        var get_grid_distance = function (position_1_, position_2_) { return Math.abs((position_2_.row + position_2_.col) - (position_1_.row + position_1_.col)); }
+        var get_distance_to_destination_prediction = function (position) { return get_grid_distance(position, position_2) * 10; }
+        var open_list = new Array(); open_list.push(position_1);
+        var open_list_bitmap = new bitmap_2d(this.row, this.col); open_list_bitmap.set_2d(position_1.row, position_1.col);
+        var G = 0, H;
+        var steps = new Array();
+        while (!open_list_bitmap.get_2d(position_2.row, position_2.col)) {
+            var get_G = function (position) {
+                if (steps.length > 0) {
+                    if (!is_adjacent(position, steps[steps.length - 1]))
+                        throw "Not adjacent error";
+                    var distance = get_grid_distance(position, steps[steps.length - 1]);
+                    if (distance == 0)
+                        return G;
+                    else if (distance == 1)
+                        return G + 10;
+                    else if (distance == 2)
+                        return G + 14;
+                    else
+                        throw "Unknown error";
+                } else
+                    return G;
+            }
+            var closest_guess_position; var G_;
+            if (open_list.length > 1) {
+                var F_min, F_min_i = -1;
+                for (var i = 0; i < open_list.length; i++) {
+                    var G_i; try { G_i = get_G(open_list[i]); } catch (e) { if (e !== "Not adjacent error") console.log(e); continue; };
+                    var H_i = get_distance_to_destination_prediction(open_list[i]);
+                    var F_i = G_i + H_i;
+                    if (F_min_i == -1 || F_i < F_min) {
+                        F_min = F_i;
+                        F_min_i = i;
+                        G_ = G_i;
+                        H = H_i;
+                    }
+                }
+                closest_guess_position = open_list.splice(F_min_i, 1)[0];
+            } else {
+                closest_guess_position = open_list.splice(0, 1)[0];
+                G_ = get_G(closest_guess_position);
+            }
+            open_list_bitmap.set_2d(closest_guess_position.row, closest_guess_position.col, false);
+            closed_list.set_2d(closest_guess_position.row, closest_guess_position.col, true);
+            var adjacent_positions = get_adjacent_positions(closest_guess_position); var new_pick = -1;
+            for (var i = 0; i < adjacent_positions.length; i++) {
+                if (open_list_bitmap.get_2d(adjacent_positions[i].row, adjacent_positions[i].col)) {
+                    var G_i; try { G_i = get_G(adjacent_positions[i]); } catch (e) { if (e !== "Not adjacent error") console.log(e); continue; };
+                    if (G_ > G_i) {
+                        new_pick = i;
+                        G_ = G_i;
+                    }
+                }
+            }
+            for (var i = 0; i < adjacent_positions.length; i++) {
+                if (i == new_pick)
+                    continue;
+                open_list.push(adjacent_positions[i]);
+                open_list_bitmap.set_2d(adjacent_positions[i].row, adjacent_positions[i].col);
+            }
+            if (new_pick != -1) {
+                closest_guess_position = adjacent_positions[new_pick];
+                closed_list.set_2d(closest_guess_position.row, closest_guess_position.col);
+            }
+            steps.push(closest_guess_position);
+        }
+        return steps;
     }
 }
 
