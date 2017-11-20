@@ -81,9 +81,11 @@ class Test_Grid extends Grid {
                 game.end_sprite.visble = false;
                 return;
             }
-
-            while (steps.length > game.step_sprites.length)
-                game.step_sprites.push(new Path_Sprite(0, 0));
+            while (steps.length > game.step_sprites.length) {
+                var cache = new Path_Sprite(0, 0);
+                cache.attach_text(new Text_specs("" + (game.step_sprites.length + 1), game.grid.cell_w * 0.618, "Helvetica"));
+                game.step_sprites.push(cache);
+            }
             for (var i = 0; i < steps.length; i++) {
                 game.step_sprites[i].move_to(steps[i]);
                 game.step_sprites[i].visble = true;
@@ -154,7 +156,6 @@ class Obstacle_Sprite extends ColoredGridSprite {
             var rand = Utilities.getRandomInt(0, game.grid.row * game.grid.col);
             var row = Math.floor(rand / game.grid.col);
             var col = rand - row * game.grid.col;
-            console.info(row + ", " + col);
             if (!this.getObstacleBitmap().get_2d(row, col)) {
                 this.getObstacleBitmap().flip_2d(row, col);
                 return new Obstacle_Sprite(row, col);

@@ -14,8 +14,14 @@
 <body>
     <div id="game" align="center">
         <canvas id="canvas" width="500" height="500"></canvas>
+        <div style="text-align: center;">
+            <input type="button" style="position: absolute; top: 520px;" onclick="switch_a_star_go_through()" value="Switch" />
+        </div>
     </div>
     <script src="a_star.js" type="text/javascript"></script>
+    <script type="text/javascript">
+        function switch_a_star_go_through() { console.info("clicked"); a_star_go_through = !a_star_go_through; }
+    </script>
 </body>
 
 </html>
