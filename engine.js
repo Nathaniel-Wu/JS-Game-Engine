@@ -368,7 +368,7 @@ class bitmap {
     }
 }
 
-class bitmap_2d {
+class bitmap_2d extends bitmap {
     constructor(row, col) {
         super(row * col);
         this.row = row;
@@ -382,9 +382,9 @@ class bitmap_2d {
             return false;
         return true;
     }
-    get_2d(row, col) { this.get(row * this.row + col); }
-    set_2d(row, col, bool) { this.set(row * this.row + col, bool); if (bool) this.bits_set++; else this.bits_set--; }
-    flip_2d(row, col) { this.flip(row * this.row + col); if (this.get_2d(row, col)) this.bits_set++; else this.bits_set--; }
+    get_2d(row, col) { return this.get(row * this.col + col); }
+    set_2d(row, col, bool) { this.set(row * this.col + col, bool); if (bool) this.bits_set++; else this.bits_set--; }
+    flip_2d(row, col) { this.flip(row * this.col + col); if (this.get_2d(row, col)) this.bits_set++; else this.bits_set--; }
     fill() { super.fill(); this.bits_set = this.row * this.col; }
     clear() { super.clear(); this.bits_set = 0; }
 }
@@ -1742,9 +1742,7 @@ class SpriteSheet extends Sprite {
 class Grid extends CollidableGObject {
     constructor(row, col) {
         var x = 0, y = 0, w = canvas.width, h = canvas.height;
-        if (w % col != 0 && h % row != 0)
-            throw "Canvas width or height is undivisible by row or col error";
-        var cell_w = Math.round(w / col), cell_h = Math.round(h / row);
+        var cell_w = w / col, cell_h = h / row;
         super(x, y, w, h, new BoundingVolume(-2 * cell_w, -2 * cell_h, w + 4 * cell_w, h + 4 * cell_h));
         this.row = row;
         this.col = col;
@@ -1788,7 +1786,7 @@ class Grid extends CollidableGObject {
     }
 
     findPath(position_1, position_2, closed_list) {
-        if ((!position_1.row) || (position_1.col) || (position_2.row) || (position_.col) || this.validate_index(position_1.row, position_1.col) || this.validate_index(position_2.row, position_2.col))
+        if (!this.validate_index(position_1.row, position_1.col) || !this.validate_index(position_2.row, position_2.col))
             throw "Invalid position error";
         if (!closed_list instanceof bitmap_2d)
             throw "Non-bitmap_2d parameter error";
@@ -1815,7 +1813,7 @@ class Grid extends CollidableGObject {
                 return true;
             return false;
         }
-        var get_grid_distance = function (position_1_, position_2_) { return Math.abs((position_2_.row + position_2_.col) - (position_1_.row + position_1_.col)); }
+        var get_grid_distance = function (position_1_, position_2_) { return Math.abs(position_2_.row - position_1_.row) + Math.abs(position_2_.col - position_1_.col); }
         var get_distance_to_destination_prediction = function (position) { return get_grid_distance(position, position_2) * 10; }
         var open_list = new Array(); open_list.push(position_1);
         var open_list_bitmap = new bitmap_2d(this.row, this.col); open_list_bitmap.set_2d(position_1.row, position_1.col);
@@ -1853,34 +1851,40 @@ class Grid extends CollidableGObject {
                     }
                 }
                 closest_guess_position = open_list.splice(F_min_i, 1)[0];
-            } else {
+            } else if (open_list.length > 0) {
                 closest_guess_position = open_list.splice(0, 1)[0];
                 G_ = get_G(closest_guess_position);
-            }
+            } else
+                return null;
             open_list_bitmap.set_2d(closest_guess_position.row, closest_guess_position.col, false);
             closed_list.set_2d(closest_guess_position.row, closest_guess_position.col, true);
             var adjacent_positions = get_adjacent_positions(closest_guess_position); var new_pick = -1;
             for (var i = 0; i < adjacent_positions.length; i++) {
                 if (open_list_bitmap.get_2d(adjacent_positions[i].row, adjacent_positions[i].col)) {
                     var G_i; try { G_i = get_G(adjacent_positions[i]); } catch (e) { if (e !== "Not adjacent error") console.log(e); continue; };
-                    if (G_ > G_i) {
+                    var H_i = get_distance_to_destination_prediction(adjacent_positions[i]);
+                    if (G_ + H > G_i + H_i) {
                         new_pick = i;
                         G_ = G_i;
+                        H = H_i;
                     }
                 }
             }
             for (var i = 0; i < adjacent_positions.length; i++) {
                 if (i == new_pick)
                     continue;
-                open_list.push(adjacent_positions[i]);
-                open_list_bitmap.set_2d(adjacent_positions[i].row, adjacent_positions[i].col);
+                if (!open_list_bitmap.get_2d(adjacent_positions[i].row, adjacent_positions[i].col)) {
+                    open_list.push(adjacent_positions[i]);
+                    open_list_bitmap.set_2d(adjacent_positions[i].row, adjacent_positions[i].col, true);
+                }
             }
             if (new_pick != -1) {
                 closest_guess_position = adjacent_positions[new_pick];
-                closed_list.set_2d(closest_guess_position.row, closest_guess_position.col);
+                closed_list.set_2d(closest_guess_position.row, closest_guess_position.col, true);
             }
             steps.push(closest_guess_position);
         }
+        steps.splice(0, 1);
         return steps;
     }
 }
@@ -2167,7 +2171,7 @@ class Input_Event {
 }
 
 function mouse_coord_within_canvas(e) {
-    return new Coordinate(e.clientX - canvas_x, e.clientY - canvas_y);
+    return new Coordinate(e.pageX - canvas_x, e.pageY - canvas_y);
 }
 
 var prev_coord = null;
