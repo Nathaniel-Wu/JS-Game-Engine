@@ -1872,7 +1872,8 @@ class Grid extends CollidableGObject {
                         H = H_i;
                     }
                 }
-                closest_guess_position = open_list.splice(F_min_i, 1)[0];
+                if (F_min_i != -1) closest_guess_position = open_list.splice(F_min_i, 1)[0];
+                else { steps.splice(steps.length - 1, 1); continue; }
             } else if (open_list.length > 0) {
                 closest_guess_position = open_list.splice(0, 1)[0];
                 G_ = get_G(closest_guess_position);
@@ -1908,8 +1909,8 @@ class Grid extends CollidableGObject {
         }
         steps.push(position_2);
         var is_adjacent_initial = function (position_1_, position_2_) {
-            var delta_row = position_1_.row - position_2_.row;
-            var delta_col = position_1_.col - position_2_.col;
+            var delta_row = position_2_.row - position_1_.row;
+            var delta_col = position_2_.col - position_1_.col;
             if ((-1 <= delta_row && delta_row <= 1) && (-1 <= delta_col && delta_col <= 1)) {
                 if ((!a_star_go_through) && Math.abs(delta_row) == 1 && Math.abs(delta_col) == 1 && initial_closed_list.get_2d(position_1_.row + delta_row, position_1_.col) && initial_closed_list.get_2d(position_1_.row, position_1_.col + delta_col))
                     return false;
