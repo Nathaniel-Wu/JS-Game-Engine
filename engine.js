@@ -366,6 +366,13 @@ class bitmap {
         for (var i = 0; i < this._rows; i++)
             this._bin[i] = 0;
     }
+
+    clone() {
+        var cloned = new bitmap();
+        cloned._buf = this._buf.slice(0);
+        cloned._bin = this._bin.slice(0);
+        return cloned;
+    }
 }
 
 class bitmap_2d extends bitmap {
@@ -387,6 +394,15 @@ class bitmap_2d extends bitmap {
     flip_2d(row, col) { this.flip(row * this.col + col); if (this.get_2d(row, col)) this.bits_set++; else this.bits_set--; }
     fill() { super.fill(); this.bits_set = this.row * this.col; }
     clear() { super.clear(); this.bits_set = 0; }
+    clone() {
+        var cloned = new bitmap_2d();
+        cloned._buf = this._buf.slice(0);
+        cloned._bin = this._bin.slice(0);
+        cloned.row = this.row;
+        cloned.col = this.col;
+        cloned.bits_set = this.bits_set;
+        return cloned;
+    }
 }
 
 //---------------------------------------------- Vector
@@ -1792,6 +1808,7 @@ class Grid extends CollidableGObject {
             throw "Non-bitmap_2d parameter error";
         if (closed_list.row != this.row || closed_list.col != this.col)
             throw "bitmap_2d size error";
+        var initial_closed_list = closed_list.clone();
         var t = this;
         var get_adjacent_positions = function (position) {
             var positions = new Array();
@@ -1811,8 +1828,11 @@ class Grid extends CollidableGObject {
         var is_adjacent = function (position_1_, position_2_) {
             var delta_row = position_1_.row - position_2_.row;
             var delta_col = position_1_.col - position_2_.col;
-            if ((-1 <= delta_row && delta_row <= 1) && (-1 <= delta_col && delta_col <= 1))
+            if ((-1 <= delta_row && delta_row <= 1) && (-1 <= delta_col && delta_col <= 1)) {
+                if ((!a_star_go_through) && Math.abs(delta_row) == 1 && Math.abs(delta_col) == 1 && closed_list.get_2d(position_1_.row + delta_row, position_1_.col) && closed_list.get_2d(position_1_.row, position_1_.col + delta_col))
+                    return false;
                 return true;
+            }
             return false;
         }
         var get_grid_distance = function (position_1_, position_2_) { return Math.abs(position_2_.row - position_1_.row) + Math.abs(position_2_.col - position_1_.col); }
@@ -1886,7 +1906,57 @@ class Grid extends CollidableGObject {
             }
             steps.push(closest_guess_position);
         }
+        steps.push(position_2);
+        var is_adjacent_initial = function (position_1_, position_2_) {
+            var delta_row = position_1_.row - position_2_.row;
+            var delta_col = position_1_.col - position_2_.col;
+            if ((-1 <= delta_row && delta_row <= 1) && (-1 <= delta_col && delta_col <= 1)) {
+                if ((!a_star_go_through) && Math.abs(delta_row) == 1 && Math.abs(delta_col) == 1 && initial_closed_list.get_2d(position_1_.row + delta_row, position_1_.col) && initial_closed_list.get_2d(position_1_.row, position_1_.col + delta_col))
+                    return false;
+                return true;
+            }
+            return false;
+        }
+        for (var i = 0; i < steps.length - 2; i++) {
+            var furthest_adjacent = null;
+            for (var j = i + 2; j < steps.length; j++)
+                if (is_adjacent_initial(steps[i], steps[j]))
+                    furthest_adjacent = j;
+            if (furthest_adjacent)
+                for (var j = 0; j < furthest_adjacent - i - 1; j++)
+                    steps.splice(i + 1, 1);
+        }
+        for (var i = 0; i < steps.length - 2; i++) {
+            var furthest_horizontally = null, furthest_vertically = null;
+            for (var j = i + 2; j < steps.length; j++) {
+                if (steps[i].row == steps[j].row && Math.abs(steps[i].col - steps[j].col) == j - i) {
+                    var consecutive = true;
+                    for (var k = i + 1; k < j; k++)
+                        if (steps[k].row == steps[i].row || initial_closed_list.get_2d(steps[i].row, steps[k].col)) {
+                            consecutive = false;
+                            break;
+                        }
+                    if (consecutive) furthest_horizontally = j;
+                } else if (steps[i].col == steps[j].col && Math.abs(steps[i].row - steps[j].row) == j - i) {
+                    var consecutive = true;
+                    for (var k = i + 1; k < j; k++)
+                        if (steps[k].col == steps[i].col || initial_closed_list.get_2d(steps[k].row, steps[i].col)) {
+                            consecutive = false;
+                            break;
+                        }
+                    if (consecutive) furthest_vertically = j;
+                }
+            }
+            if (furthest_horizontally) {
+                for (var j = 0; j < furthest_horizontally - i - 1; j++)
+                    steps[i + 1 + j].row = steps[i].row;
+            } else if (furthest_vertically) {
+                for (var j = 0; j < furthest_vertically - i - 1; j++)
+                    steps[i + 1 + j].col = steps[i].col;
+            }
+        }
         steps.splice(0, 1);
+        steps.splice(steps.length - 1, 1);
         return steps;
     }
 }
