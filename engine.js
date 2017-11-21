@@ -1775,6 +1775,25 @@ class Grid extends CollidableGObject {
         this.grid_sprites = new Array();
     }
 
+    actual_draw() {
+        for (var i = 0; i <= this.row; i++) {
+            context.beginPath();
+            context.lineWidth = "1";
+            context.strokeStyle = "grey";
+            context.moveTo(0, i * this.cell_h);
+            context.lineTo(this.w, i * this.cell_h);
+            context.stroke();
+        }
+        for (var i = 0; i <= this.col; i++) {
+            context.beginPath();
+            context.lineWidth = "1";
+            context.strokeStyle = "grey";
+            context.moveTo(i * this.cell_w, 0);
+            context.lineTo(i * this.cell_w, this.h);
+            context.stroke();
+        }
+    }
+
     move_prediction() {
         return new Grid(this.row, this.col);
     }
