@@ -1827,6 +1827,7 @@ class Grid extends CollidableGObject {
             throw "Non-bitmap_2d parameter error";
         if (closed_list.row != this.row || closed_list.col != this.col)
             throw "bitmap_2d size error";
+        var closed_list_copy = closed_list.clone();
         var initial_closed_list = closed_list.clone();
         var t = this;
         var get_adjacent_positions = function (position) {
@@ -1836,9 +1837,9 @@ class Grid extends CollidableGObject {
                     if ((i == 0 && j == 0) || (position.row + i < 0) || (position.row + i >= t.row) || (position.col + j < 0) || (position.col + j >= t.col))
                         continue;
                     var position_ij = { 'row': position.row + i, 'col': position.col + j };
-                    if (closed_list.get_2d(position_ij.row, position_ij.col))
+                    if (closed_list_copy.get_2d(position_ij.row, position_ij.col))
                         continue;
-                    if ((!a_star_go_through) && Math.abs(i) == 1 && Math.abs(j) == 1 && closed_list.get_2d(position_ij.row, position_ij.col - j) && closed_list.get_2d(position_ij.row - i, position_ij.col))
+                    if ((!a_star_go_through) && Math.abs(i) == 1 && Math.abs(j) == 1 && closed_list_copy.get_2d(position_ij.row, position_ij.col - j) && closed_list_copy.get_2d(position_ij.row - i, position_ij.col))
                         continue;
                     positions.push(position_ij);
                 }
@@ -1848,7 +1849,7 @@ class Grid extends CollidableGObject {
             var delta_row = position_1_.row - position_2_.row;
             var delta_col = position_1_.col - position_2_.col;
             if ((-1 <= delta_row && delta_row <= 1) && (-1 <= delta_col && delta_col <= 1)) {
-                if ((!a_star_go_through) && Math.abs(delta_row) == 1 && Math.abs(delta_col) == 1 && closed_list.get_2d(position_1_.row + delta_row, position_1_.col) && closed_list.get_2d(position_1_.row, position_1_.col + delta_col))
+                if ((!a_star_go_through) && Math.abs(delta_row) == 1 && Math.abs(delta_col) == 1 && closed_list_copy.get_2d(position_1_.row + delta_row, position_1_.col) && closed_list_copy.get_2d(position_1_.row, position_1_.col + delta_col))
                     return false;
                 return true;
             }
@@ -1894,12 +1895,15 @@ class Grid extends CollidableGObject {
                 if (F_min_i != -1) closest_guess_position = open_list.splice(F_min_i, 1)[0];
                 else { steps.splice(steps.length - 1, 1); continue; }
             } else if (open_list.length > 0) {
-                closest_guess_position = open_list.splice(0, 1)[0];
-                G_ = get_G(closest_guess_position);
+                if (open_list.length > 1) {
+                    closest_guess_position = open_list.splice(0, 1)[0];
+                    G_ = get_G(closest_guess_position);
+                } else
+                    closest_guess_position = open_list.splice(0, 1)[0];
             } else
                 return null;
             open_list_bitmap.set_2d(closest_guess_position.row, closest_guess_position.col, false);
-            closed_list.set_2d(closest_guess_position.row, closest_guess_position.col, true);
+            closed_list_copy.set_2d(closest_guess_position.row, closest_guess_position.col, true);
             var adjacent_positions = get_adjacent_positions(closest_guess_position); var new_pick = -1;
             for (var i = 0; i < adjacent_positions.length; i++) {
                 if (open_list_bitmap.get_2d(adjacent_positions[i].row, adjacent_positions[i].col)) {
@@ -1922,7 +1926,7 @@ class Grid extends CollidableGObject {
             }
             if (new_pick != -1) {
                 closest_guess_position = adjacent_positions[new_pick];
-                closed_list.set_2d(closest_guess_position.row, closest_guess_position.col, true);
+                closed_list_copy.set_2d(closest_guess_position.row, closest_guess_position.col, true);
             }
             steps.push(closest_guess_position);
         }
