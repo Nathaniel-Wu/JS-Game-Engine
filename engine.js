@@ -817,7 +817,7 @@ class BoundingVolume {
         var this_lr = this_ul.add(new Coordinate(this.w, this.h));
         var bv_ul = bv.get_actual_coordinate();
         var bv_lr = bv_ul.add(new Coordinate(bv.w, bv.h));
-        if ((this_ul.x > bv_lr.x || bv_ul.x > this_lr.x) || (this_ul.y > bv_lr.y || bv_ul.y > this_lr.y))
+        if ((this_ul.x - bv_lr.x > canvas.width * 0.000001 || bv_ul.x - this_lr.x > canvas.width * 0.000001) || (this_ul.y - bv_lr.y > canvas.height * 0.000001 || bv_ul.y - this_lr.y > canvas.height * 0.000001))
             return false;
         return true;
     }
