@@ -1,3 +1,4 @@
+var game;
 class CaR extends Game {
     constructor(framerate, refresh_rate) {
         super(framerate);
@@ -8,25 +9,116 @@ class CaR extends Game {
         this.obstacles = null;
         this.cops = null;
         this.robbers = null;
+        this.set_cop_targets = true;
+        this.cop_target_robbers = null;
+        this.restart_flag_delay_set = false;
+        this.start_time = null;
+        this.first_dir = null;
+        this.second_dir = null;
     }
 
     load() {
-        this.grid = new CaR_Grid();
+        this.grid = new CaR_Grid(40, 40);
         this.obstacles = new Array();
         this.cops = new Array();
         this.robbers = new Array();
         Obstacle_Sprite.create_random_obstacle(10);
-        Cop_Sprite.create_random_cop(2);
-        Robber_Sprite.create_random_robber(1);
+        Cop_Sprite.create_random_cop(10);
+        Robber_Sprite.create_random_robber(3);
+        this.si = this.input_event_subscription_manager.add_subscriber(this);
+        this.set_cop_targets = true;
+        this.cop_target_robbers = null;
+        this.restart_flag_delay_set = false;
+        this.start_time = new Date().getTime();
+        this.first_dir = null;
+        this.second_dir = null;
+    }
+
+    deload() {
+        super.deload();
+        this.grid.destroy; this.grid = null;
+        Obstacle_Sprite.destroy_all(); this.obstacles = null;
+        Cop_Sprite.destroy_all(); this.cops = null;
+        Robber_Sprite.destroy_all(); this.robbers = null;
+        this.input_event_subscription_manager.remove_subscriber(this.si); this.si = null;
+    }
+
+    handle_input_event(event) {
+        this.input_event_subscription_manager.set_exclusive(this.si, event.type);
+        var dir = null;
+        switch (event.type) {
+            case IEType.UP:
+                dir = DIR.U;
+                break;
+            case IEType.DOWN:
+                dir = DIR.D;
+                break;
+            case IEType.LEFT:
+                dir = DIR.L;
+                break;
+            case IEType.RIGHT:
+                dir = DIR.R;
+                break;
+        }
+        if (dir != null) {
+            if (this.first_dir == null)
+                this.first_dir = dir;
+            else if (this.second_dir == null && this.first_dir != dir)
+                this.second_dir = dir;
+            else if (this.first_dir != dir && this.second_dir != dir) {
+                this.first_dir = this.second_dir;
+                this.second_dir = dir;
+            }
+        }
+        this.input_event_subscription_manager.release_exclusive(this.si, event.type);
     }
 
     update() {
         super.update();
+        if (new Date().getTime() - this.start_time > 10000) {
+            if (!this.restart_flag_delay_set) {
+                this.ui_stack.push(new Robbers_Win_Message());
+                var t = this; setTimeout(function () { t.restart_flag = true }, 3000); this.restart_flag_delay_set = true;
+            }
+        }
+        if (this.restart_flag_delay_set)
+            return;
         if (this.update_count == 0) {
+            if (this.first_dir != null || this.second_dir != null) {
+                if (this.second_dir != null) {
+                    if ((this.first_dir == DIR.U && this.second_dir == DIR.L) || (this.first_dir == DIR.L && this.second_dir == DIR.U))
+                        this.robbers[0].move_in_direction(DIR.UL);
+                    else if ((this.first_dir == DIR.U && this.second_dir == DIR.R) || (this.first_dir == DIR.R && this.second_dir == DIR.U))
+                        this.robbers[0].move_in_direction(DIR.UR);
+                    else if ((this.first_dir == DIR.D && this.second_dir == DIR.L) || (this.first_dir == DIR.L && this.second_dir == DIR.D))
+                        this.robbers[0].move_in_direction(DIR.DL);
+                    else if ((this.first_dir == DIR.D && this.second_dir == DIR.R) || (this.first_dir == DIR.R && this.second_dir == DIR.D))
+                        this.robbers[0].move_in_direction(DIR.DR);
+                    else
+                        this.robbers[0].move_in_direction(this.second_dir);
+                } else if (this.first_dir != null)
+                    this.robbers[0].move_in_direction(this.first_dir);
+            }
+            this.first_dir = null;
+            this.second_dir = null;
             this.grid.update();
             Obstacle_Sprite.update_all();
             Robber_Sprite.update_all();
             Cop_Sprite.update_all();
+            CollidableGObject.CGO_update();
+            var uncaught_robbers_count = 0;
+            for (var i = 0; i < this.robbers.length; i++)
+                if (this.robbers[i].caught) {
+                    if (this.robbers[i].movable) {
+                        this.robbers[i].movable = false;
+                        this.robbers[i].attach_text(new Text_specs("X", this.robbers[i].h * 0.9, "Helvetica"));
+                    }
+                } else
+                    uncaught_robbers_count++;
+            if (uncaught_robbers_count == 0) {
+                this.ui_stack.push(new Cops_Win_Message());
+                if (!this.restart_flag_delay_set) { var t = this; setTimeout(function () { t.restart_flag = true }, 3000); this.restart_flag_delay_set = true; }
+            }
         } this.update_count = (this.update_count + 1) % this.refresh_interval;
     }
 
@@ -39,79 +131,31 @@ class CaR extends Game {
     }
 }
 
-class CaR_Grid extends Grid {
+class Cops_Win_Message extends UI {
     constructor() {
-        super(15, 15);
+        super(game, 1, true);
+        this.message = new Colored_Sprite(0, 0, canvas.width, canvas.height, 0, 0, 255, 255); this.message.collidable = false;
+        this.message.attach_text(new Text_specs("Cops Win!", 60, "Helvetica"));
+    }
+
+    update() { this.message.update(); }
+    actual_draw() { this.message.draw(); }
+    destroy() { this.message.destroy(); }
+}
+
+class Robbers_Win_Message extends Cops_Win_Message {
+    constructor() {
+        super();
+        this.message.attach_color(0, 255, 255, 255);
+        this.message.attach_text(new Text_specs("Robbers Win!", 60, "Helvetica"));
+    }
+}
+
+class CaR_Grid extends Grid {
+    constructor(row, col) {
+        super(row, col);
         this.visble = true;
-        this.input_event_subscription_manager = input_event_subscription_manager;
-        this.input_event_subscription_manager.add_subscriber(this);
-        this.selected_position = null;
-        this.start_position = null;
-        this.end_position = null;
-    }
-
-    update() {
-        if (this.selected_position) {
-            if (!this.start_position) {
-                this.start_position = this.selected_position;
-                game.start_sprite.move_to(this.start_position);
-                game.start_sprite.visble = true;
-                for (var i = 0; i < game.step_sprites.length; i++)
-                    game.step_sprites[i].visble = false;
-                game.end_sprite.visble = false;
-            }
-            else if (!this.end_position) {
-                this.end_position = this.selected_position;
-                game.end_sprite.move_to(this.end_position);
-                game.end_sprite.visble = true;
-            }
-            else
-                throw "Error";
-            this.selected_position = null;
-        }
-        if (this.start_position && this.end_position) {
-            var closed_list = new bitmap_2d(this.row, this.col);
-            for (var i = 0; i < game.obstacles.length; i++)
-                closed_list.set_2d(game.obstacles[i].row, game.obstacles[i].col, true);
-            var steps; try { steps = this.findPath(this.start_position, this.end_position, closed_list); } catch (e) { console.log(e); }
-            if (!steps) {
-                this.end_position = null;
-                game.end_sprite.visble = false;
-                return;
-            }
-            while (steps.length > game.step_sprites.length) {
-                var cache = new Path_Sprite(0, 0);
-                cache.attach_text(new Text_specs("" + (game.step_sprites.length + 1), game.grid.cell_w * 0.618, "Helvetica"));
-                game.step_sprites.push(cache);
-            }
-            for (var i = 0; i < steps.length; i++) {
-                game.step_sprites[i].move_to(steps[i]);
-                game.step_sprites[i].visble = true;
-            }
-            var i = steps.length;
-            while (i < game.step_sprites.length) {
-                game.step_sprites[i].visble = false;
-                i++;
-            }
-            this.start_position = null;
-            this.end_position = null;
-        }
-    }
-
-    handle_input_event(event) {
-        switch (event.type) {
-            case IEType.SELECT: {
-                try {
-                    this.input_event_subscription_manager.set_exclusive(this.si, IEType.SELECT);
-                    var row = Math.floor(event.coord.y / this.cell_h);
-                    var col = Math.floor(event.coord.x / this.cell_w);
-                    this.selected_position = { 'row': row, 'col': col };
-                } catch (e) {
-                    console.log(e);
-                } this.input_event_subscription_manager.release_exclusive(this.si, IEType.SELECT);
-                break;
-            }
-        }
+        this.collidable = false;
     }
 
     static get_unavailable_position_bitmap() {
@@ -134,14 +178,153 @@ class Cop_Sprite extends Flashing_ColoredGridSprite {
         this.attach_color(223, 223, 223, 255);
     }
 
+    move_prediction() {
+        return new Cop_Sprite(this.row, this.col);
+    }
+
+    resolve(collision) {
+        super.resolve(collision);
+        if (collision.into instanceof Robber_Sprite)
+            collision.into.resolve(new Collision(null, this, CPType.PASSIVE));
+    }
+
     static update_all() {
-        for (var i = 0; i < game.cops.length; i++)
+        var cop_positions = new Array(); for (var i = 0; i < game.cops.length; i++) cop_positions.push({ 'row': game.cops[i].row, 'col': game.cops[i].col });
+        var robber_positions = new Array(); for (var i = 0; i < game.robbers.length; i++) robber_positions.push({ 'row': game.robbers[i].row, 'col': game.robbers[i].col });
+        if (game.set_cop_targets) {
+            var uncaught_robber_indices = new Array();
+            for (var i = 0; i < game.robbers.length; i++)
+                if (!game.robbers[i].caught)
+                    uncaught_robber_indices.push(i);
+            var available_cop_indices = new Array();
+            var cop_idle_bitmap = new bitmap(game.cops.length); cop_idle_bitmap.fill();
+            for (var i = 0; i < game.cops.length; i++)
+                available_cop_indices.push(i);
+            var cops_per_robber = new Array(uncaught_robber_indices.length); cops_per_robber.fill(0);
+            if (available_cop_indices.length >= 2 * uncaught_robber_indices.length) {
+                const min_cops_per_robber = Math.floor(available_cop_indices.length / uncaught_robber_indices.length);
+                cops_per_robber.fill(min_cops_per_robber);
+                var idle_cops_count = available_cop_indices.length - min_cops_per_robber * uncaught_robber_indices.length;
+                for (var i = 0; i < idle_cops_count; i++)
+                    cops_per_robber[i]++;
+            } else
+                for (var i = 0; i < available_cop_indices.length; i++) {
+                    if ((i + 1) * 2 <= available_cop_indices.length)
+                        cops_per_robber[i] = 2;
+                    else if (i * 2 + 1 <= available_cop_indices.length)
+                        cops_per_robber[i] = 1;
+                    else
+                        break;
+                }
+            game.cop_target_robbers = new Array(game.cops.length); game.cop_target_robbers.fill(-1);
+            var get_grid_distance = function (position_1, position_2) { return Math.abs(position_2.row - position_1.row) + Math.abs(position_2.col - position_1.col); }
+            for (var i = 0; i < cops_per_robber.length; i++) {
+                for (var j = 0; j < cops_per_robber[i]; j++) {
+                    var min_distance = null, min_distance_cop_index = null;
+                    for (var k = 0; k < available_cop_indices.length; k++)
+                        if (cop_idle_bitmap.get(available_cop_indices[k])) {
+                            var distance = get_grid_distance(robber_positions[i], cop_positions[available_cop_indices[k]]);
+                            if ((!min_distance) || distance < min_distance) {
+                                min_distance = distance;
+                                min_distance_cop_index = available_cop_indices[k];
+                            }
+                        }
+                    if (min_distance_cop_index == null)
+                        throw "Unknown Error";
+                    game.cop_target_robbers[min_distance_cop_index] = uncaught_robber_indices[i];
+                    cop_idle_bitmap.set(min_distance_cop_index, false);
+                }
+            }
+            game.set_cop_targets = false;
+        }
+        var unavailable_position_bitmap = CaR_Grid.get_unavailable_position_bitmap();
+        for (var i = 0; i < game.cops.length; i++) {
+            var target_position_index = 0;
+            var target_position = null;
+            var clone_position_object = function (position_) { return { 'row': position_.row, 'col': position_.col }; }
+            var compare_two_position_objects = function (position_1, position_2) { return position_1.row == position_2.row && position_1.col == position_2.col }
+            var target_position_index_to_real_position = function () {
+                target_position = clone_position_object(robber_positions[game.cop_target_robbers[i]]);
+                switch (target_position_index) {
+                    case 0://UP
+                        target_position.row--;
+                        break;
+                    case 1://RIGHT
+                        target_position.col++;
+                        break;
+                    case 2://DOWN
+                        target_position.row++;
+                        break;
+                    case 3://LEFT
+                        target_position.col--;
+                        break;
+                    case 4://UP-RIGHT
+                        target_position.row--;
+                        target_position.col++;
+                        break;
+                    case 5://DOWN-RIGHT
+                        target_position.row++;
+                        target_position.col++;
+                        break;
+                    case 6://DOWN-LEFT
+                        target_position.row++;
+                        target_position.col--;
+                        break;
+                    case 7://UP-LEFT
+                        target_position.row--;
+                        target_position.col--;
+                        break;
+                }
+            }
+            var no_need_to_move = false;
+            while (target_position_index < 4) {
+                target_position_index_to_real_position();
+                if (compare_two_position_objects(cop_positions[i], target_position)) {
+                    no_need_to_move = true;
+                    break;
+                } target_position_index++;
+            }
+            if (no_need_to_move) {
+                game.cops[i].update();
+                continue;
+            }
+            target_position_index = 0;
+            while (target_position_index < 8) {
+                target_position_index_to_real_position();
+                if (game.grid.validate_index(target_position.row, target_position.col))
+                    if (!unavailable_position_bitmap.get_2d(target_position.row, target_position.col))
+                        break;
+                target_position_index++;
+            }
+            if (target_position_index >= 8) {
+                game.cops[i].update();
+                continue;
+            }
+            unavailable_position_bitmap.set_2d(cop_positions[i].row, cop_positions[i].col, false);
+            var steps = game.grid.findPath(cop_positions[i], target_position, unavailable_position_bitmap);
+            unavailable_position_bitmap.set_2d(cop_positions[i].row, cop_positions[i].col, true);
+            if (steps != null) {
+                unavailable_position_bitmap.set_2d(cop_positions[i].row, cop_positions[i].col, false);
+                if (steps.length > 0) {
+                    unavailable_position_bitmap.set_2d(steps[0].row, steps[0].col, true);
+                    game.cops[i].move_to(steps[0]);
+                } else {
+                    unavailable_position_bitmap.set_2d(target_position.row, target_position.col, true);
+                    game.cops[i].move_to(target_position);
+                }
+            }
             game.cops[i].update();
+        }
     }
 
     static draw_all() {
         for (var i = 0; i < game.cops.length; i++)
             game.cops[i].draw();
+    }
+
+    static destroy_all() {
+        for (var i = game.cops.length - 1; i >= 0; i--)
+            game.cops.splice(i, 1)[0].destroy();
     }
 
     static create_random_cop(number) {
@@ -160,19 +343,128 @@ class Cop_Sprite extends Flashing_ColoredGridSprite {
     }
 }
 
+const DIR = { 'U': 0, 'D': 1, 'L': 2, 'R': 3, 'UL': 4, 'UR': 5, 'DL': 6, 'DR': 7 };
 class Robber_Sprite extends ColoredGridSprite {
     constructor(row, col) {
         super(row, col, game.grid, 0, 255, 255, 255);
+        this.hit_by_cop_1 = false;
+        this.hit_by_cop_2 = false;
+        this.caught = false;
+    }
+
+    move_prediction() {
+        return new Robber_Sprite(this.row, this.col);
+    }
+
+    resolve(collision) {
+        super.resolve(collision);
+        if (collision.into instanceof Cop_Sprite)
+            if (this.row == collision.into.row || this.col == collision.into.col) {
+                if (!this.hit_by_cop_1)
+                    this.hit_by_cop_1 = true;
+                else if (!this.hit_by_cop_2)
+                    this.hit_by_cop_2 = true;
+                if (this.hit_by_cop_1 && this.hit_by_cop_2) {
+                    this.caught = true;
+                    game.set_cop_targets = true;
+                }
+            }
+    }
+
+    update() {
+        super.update();
+        if (!this.caught) {
+            this.hit_by_cop_1 = false;
+            this.hit_by_cop_2 = false;
+        }
+    }
+
+    position_in_direction(dir) {
+        var position = null; switch (dir) {
+            case DIR.U:
+                if (this.row > 0)
+                    position = { 'row': this.row - 1, 'col': this.col };
+                break;
+            case DIR.D:
+                if (this.row < game.grid.row - 1)
+                    position = { 'row': this.row + 1, 'col': this.col };
+                break;
+            case DIR.L:
+                if (this.col > 0)
+                    position = { 'row': this.row, 'col': this.col - 1 };
+                break;
+            case DIR.R:
+                if (this.col < game.grid.col - 1)
+                    position = { 'row': this.row, 'col': this.col + 1 };
+                break;
+            case DIR.UL:
+                if (this.row > 0 && this.col > 0)
+                    position = { 'row': this.row - 1, 'col': this.col - 1 };
+                break;
+            case DIR.UR:
+                if (this.row > 0 && this.col < game.grid.col - 1)
+                    position = { 'row': this.row - 1, 'col': this.col + 1 };
+                break;
+            case DIR.DL:
+                if (this.row < game.grid.row - 1 && this.col > 0)
+                    position = { 'row': this.row + 1, 'col': this.col - 1 };
+                break;
+            case DIR.DR:
+                if (this.row < game.grid.row - 1 && this.col < game.grid.col - 1)
+                    position = { 'row': this.row + 1, 'col': this.col + 1 };
+                break;
+        } return position;
+    }
+
+    move_in_direction(dir) {
+        if (this.movable) {
+            var unavailable_position_bitmap = CaR_Grid.get_unavailable_position_bitmap();
+            var intended_position = this.position_in_direction(dir);
+            if (intended_position)
+                if (!unavailable_position_bitmap.get_2d(intended_position.row, intended_position.col))
+                    this.move_to(intended_position);
+        }
     }
 
     static update_all() {
-        for (var i = 0; i < game.robbers.length; i++)
+        var unavailable_position_bitmap = CaR_Grid.get_unavailable_position_bitmap();
+        for (var i = 0; i < game.robbers.length; i++) {
+            if (i != 0) {
+                var min_threat_of_cops = null;
+                var min_threat_of_cops_dir = null;
+                for (var j = 0; j < 9; j++) {
+                    var p;
+                    if (j < 8)
+                        p = game.robbers[i].position_in_direction(j);
+                    else
+                        p = { 'row': this.row, 'col': this.col };
+                    if (p == null || (j != 8 && unavailable_position_bitmap.get_2d(p.row, p.col)))
+                        continue;
+                    var distance_to_cops = 0;
+                    for (var k = 0; k < game.cops.length; k++) {
+                        var d = Math.abs(game.cops[k].row - p.row) + Math.abs(game.cops[k].col - p.col);
+                        distance_to_cops += d * Math.pow(2, 20 - d);
+                    }
+                    if (min_threat_of_cops == null || distance_to_cops < min_threat_of_cops) {
+                        min_threat_of_cops = distance_to_cops;
+                        min_threat_of_cops_dir = j;
+                    }
+                }
+                if (min_threat_of_cops_dir < 8)
+                    game.robbers[i].move_in_direction(min_threat_of_cops_dir);
+            }
             game.robbers[i].update();
+        }
     }
 
     static draw_all() {
         for (var i = 0; i < game.robbers.length; i++)
             game.robbers[i].draw();
+    }
+
+    static destroy_all() {
+        for (var i = game.robbers.length - 1; i >= 0; i--)
+            game.robbers.splice(i, 1)[0].destroy();
     }
 
     static create_random_robber(number) {
@@ -184,7 +476,9 @@ class Robber_Sprite extends ColoredGridSprite {
                 var unavailable_position_bitmap = CaR_Grid.get_unavailable_position_bitmap();
                 if (!unavailable_position_bitmap.get_2d(row, col)) {
                     unavailable_position_bitmap.flip_2d(row, col);
-                    game.robbers.push(new Robber_Sprite(row, col));
+                    var robber = new Robber_Sprite(row, col);
+                    if (i == 0) robber.attach_color(255, 255, 0, 255);
+                    game.robbers.push(robber);
                     break;
                 }
             }
@@ -194,6 +488,7 @@ class Robber_Sprite extends ColoredGridSprite {
 class Obstacle_Sprite extends ColoredGridSprite {
     constructor(row, col) {
         super(row, col, game.grid, 255, 0, 0, 255);
+        this.collidable = false;
     }
 
     static update_all() {
@@ -204,6 +499,11 @@ class Obstacle_Sprite extends ColoredGridSprite {
     static draw_all() {
         for (var i = 0; i < game.obstacles.length; i++)
             game.obstacles[i].draw();
+    }
+
+    static destroy_all() {
+        for (var i = game.obstacles.length - 1; i >= 0; i--)
+            game.obstacles.splice(i, 1)[0].destroy();
     }
 
     static create_random_obstacle(number) {
@@ -222,6 +522,6 @@ class Obstacle_Sprite extends ColoredGridSprite {
     }
 }
 
-/*************************************************/
-var game = new CaR(60, 2);
+//---------------------------------------------- Run
+game = new CaR(60, 3);
 game.start();
