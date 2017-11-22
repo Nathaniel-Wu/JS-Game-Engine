@@ -5,26 +5,9 @@ class PlayGrid extends Grid {
         super(15, 15);
         this.visble = true;
     }
-
-    move_prediction() {
-        return new PlayGrid();
-    }
+    move_prediction() { return new PlayGrid(); }
 }
-
-class PlaySprite extends ColoredGridSprite {
-    constructor(row, col, color) {
-        super(row, col, playgrid, color.r, color.g, color.b, color.a);
-    }
-
-    actual_draw() {
-        super.actual_draw();
-        context.beginPath();
-        context.lineWidth = "1";
-        context.strokeStyle = "black";
-        context.rect(this.coord.x, this.coord.y, this.w, this.h);
-        context.stroke();
-    }
-}
+class PlaySprite extends ColoredGridSprite { constructor(row, col, color) { super(row, col, playgrid, color.r, color.g, color.b, color.a); } }
 
 //---------------------------------------------- Food
 var foods;
