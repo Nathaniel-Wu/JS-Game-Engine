@@ -1999,6 +1999,18 @@ class GridSprite extends Sprite {
         this.texture_id = null;
         this.text = null;
         this.decorator = null;
+        this.draw_grid_cell = true;
+    }
+
+    actual_draw() {
+        super.actual_draw();
+        if (this.draw_grid_cell) {
+            context.beginPath();
+            context.lineWidth = "1";
+            context.strokeStyle = "black";
+            context.rect(this.coord.x, this.coord.y, this.w, this.h);
+            context.stroke();
+        }
     }
 
     move_prediction() {
@@ -2072,6 +2084,41 @@ class ColoredGridSprite extends GridSprite {
             context.fillRect(this.coord.x, this.coord.y, this.w, this.h);
         }
         super.actual_draw();
+    }
+}
+
+class Flashing_ColoredGridSprite extends ColoredGridSprite {
+    constructor(row, col, grid, flash_interval) {
+        super(row, col, grid, 0, 0, 0, 0);
+        this.visble = false;
+        this.flash_interval = flash_interval;
+        this.colors = new Array();
+        this.current_color_index = null;
+        this.draw_count = Utilities.getRandomInt(0, this.flash_interval);
+    }
+
+    attach_color(r, g, b, a) {
+        if (!this.colors)
+            super.attach_color(r, g, b, a);
+        else {
+            if ((0 > r || r > 255) || (0 > g || g > 255) || (0 > b || b > 255) || (0 > a || a > 255))
+                throw "Invalid color error";
+            if (!this.visble)
+                this.visble = true;
+            this.colors.push({ 'r': r, 'g': g, 'b': b, 'a': a });
+        }
+    }
+
+    actual_draw() {
+        if (this.colors.length > 0) {
+            if (this.draw_count == 0) {
+                if (this.current_color_index == null)
+                    this.current_color_index = 0;
+                else
+                    this.current_color_index = (this.current_color_index + 1) % (this.colors.length);
+                this.color = this.colors[this.current_color_index];
+            } super.actual_draw();
+        } this.draw_count = (this.draw_count + 1) % this.flash_interval;
     }
 }
 
