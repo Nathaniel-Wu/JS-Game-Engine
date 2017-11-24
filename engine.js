@@ -30,6 +30,7 @@ class Game {
         this.ui_inter_frame = 1000 / this.ui_framerate;
         this.drawing = false;
         this.frame_time_log = false;
+        this.level_load_functions = new Array();
     }
 
     turn_on_frame_time_log() {
@@ -105,6 +106,16 @@ class Game {
     }
 
     load() { }
+
+    push_level(level_load_function) {
+        this.level_load_functions.push(level_load_function);
+    }
+
+    load_level(index) {
+        if (0 > index && index > this.level_load_functions.length)
+            throw "Invalid level index error";
+        this.level_load_functions[index]();
+    }
 
     deload() {
         for (var i = this.input_event_subscription_manager.subscribers.length - 1; i >= 0; i--)
@@ -1755,7 +1766,7 @@ class SpriteSheet extends Sprite {
 
 //---------------------------------------------- Grid
 var a_star_go_through = false;
-class Grid extends CollidableGObject {
+class Grid extends GObject {
     constructor(row, col) {
         var x = 0, y = 0, w = canvas.width, h = canvas.height;
         var cell_w = w / col, cell_h = h / row;
@@ -1764,15 +1775,8 @@ class Grid extends CollidableGObject {
         this.col = col;
         this.cell_w = cell_w;
         this.cell_h = cell_h;
-        this.CP = CPType.PASSIVE;
-        this.collidable = true;
         this.movable = false;
         this.visble = false;
-        this.root_bounding_volume.attach_child_BoundingVolume(new BoundingVolume(0, -2 * cell_h, w, 2 * cell_h));
-        this.root_bounding_volume.attach_child_BoundingVolume(new BoundingVolume(0, h, w, 2 * cell_h));
-        this.root_bounding_volume.attach_child_BoundingVolume(new BoundingVolume(-2 * cell_w, 0, 2 * cell_w, h));
-        this.root_bounding_volume.attach_child_BoundingVolume(new BoundingVolume(w, 0, 2 * cell_w, h));
-        this.grid_sprites = new Array();
     }
 
     actual_draw() {
@@ -1792,10 +1796,6 @@ class Grid extends CollidableGObject {
             context.lineTo(i * this.cell_w, this.h);
             context.stroke();
         }
-    }
-
-    move_prediction() {
-        return new Grid(this.row, this.col);
     }
 
     validate_index(row, col) {
