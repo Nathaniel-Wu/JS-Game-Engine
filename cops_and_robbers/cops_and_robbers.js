@@ -15,16 +15,18 @@ class CaR extends Game {
         this.start_time = null;
         this.first_dir = null;
         this.second_dir = null;
+        this.level_index = 0;
+        this.time_limit = 10;
     }
 
     load() {
-        this.grid = new CaR_Grid(40, 40);
         this.obstacles = new Array();
         this.cops = new Array();
         this.robbers = new Array();
-        Obstacle_Sprite.create_random_obstacle(10);
-        Cop_Sprite.create_random_cop(10);
-        Robber_Sprite.create_random_robber(3);
+        this.load_level(this.level_index % this.level_load_functions.length);
+        this.level_index++;
+        Cop_Sprite.create_random_cop(2);
+        Robber_Sprite.create_random_robber(2);
         this.si = this.input_event_subscription_manager.add_subscriber(this);
         this.set_cop_targets = true;
         this.cop_target_robbers = null;
@@ -75,7 +77,7 @@ class CaR extends Game {
 
     update() {
         super.update();
-        if (new Date().getTime() - this.start_time > 10000) {
+        if (new Date().getTime() - this.start_time > this.time_limit * 1000) {
             if (!this.restart_flag_delay_set) {
                 this.ui_stack.push(new Robbers_Win_Message());
                 var t = this; setTimeout(function () { t.restart_flag = true }, 3000); this.restart_flag_delay_set = true;
@@ -87,17 +89,17 @@ class CaR extends Game {
             if (this.first_dir != null || this.second_dir != null) {
                 if (this.second_dir != null) {
                     if ((this.first_dir == DIR.U && this.second_dir == DIR.L) || (this.first_dir == DIR.L && this.second_dir == DIR.U))
-                        this.robbers[0].move_in_direction(DIR.UL);
+                        this.robbers[this.robbers.length - 1].move_in_direction(DIR.UL);
                     else if ((this.first_dir == DIR.U && this.second_dir == DIR.R) || (this.first_dir == DIR.R && this.second_dir == DIR.U))
-                        this.robbers[0].move_in_direction(DIR.UR);
+                        this.robbers[this.robbers.length - 1].move_in_direction(DIR.UR);
                     else if ((this.first_dir == DIR.D && this.second_dir == DIR.L) || (this.first_dir == DIR.L && this.second_dir == DIR.D))
-                        this.robbers[0].move_in_direction(DIR.DL);
+                        this.robbers[this.robbers.length - 1].move_in_direction(DIR.DL);
                     else if ((this.first_dir == DIR.D && this.second_dir == DIR.R) || (this.first_dir == DIR.R && this.second_dir == DIR.D))
-                        this.robbers[0].move_in_direction(DIR.DR);
+                        this.robbers[this.robbers.length - 1].move_in_direction(DIR.DR);
                     else
-                        this.robbers[0].move_in_direction(this.second_dir);
+                        this.robbers[this.robbers.length - 1].move_in_direction(this.second_dir);
                 } else if (this.first_dir != null)
-                    this.robbers[0].move_in_direction(this.first_dir);
+                    this.robbers[this.robbers.length - 1].move_in_direction(this.first_dir);
             }
             this.first_dir = null;
             this.second_dir = null;
@@ -116,8 +118,14 @@ class CaR extends Game {
                 } else
                     uncaught_robbers_count++;
             if (uncaught_robbers_count == 0) {
-                this.ui_stack.push(new Cops_Win_Message());
-                if (!this.restart_flag_delay_set) { var t = this; setTimeout(function () { t.restart_flag = true }, 3000); this.restart_flag_delay_set = true; }
+                if (!this.restart_flag_delay_set) {
+                    this.restart_flag_delay_set = true;
+                    var t = this;
+                    setTimeout(function () {
+                        t.ui_stack.push(new Cops_Win_Message());
+                        setTimeout(function () { t.restart_flag = true }, 2000);
+                    }, 1000);
+                }
             }
         } this.update_count = (this.update_count + 1) % this.refresh_interval;
     }
@@ -155,7 +163,6 @@ class CaR_Grid extends Grid {
     constructor(row, col) {
         super(row, col);
         this.visble = true;
-        this.collidable = false;
     }
 
     static get_unavailable_position_bitmap() {
@@ -364,7 +371,18 @@ class Robber_Sprite extends ColoredGridSprite {
                     this.hit_by_cop_1 = true;
                 else if (!this.hit_by_cop_2)
                     this.hit_by_cop_2 = true;
-                if (this.hit_by_cop_1 && this.hit_by_cop_2) {
+                if (this.hit_by_cop_1 && (!this.hit_by_cop_2)) {
+                    var cannot_move = true;
+                    for (var i = 0; i < 8; i++)
+                        if (this.position_in_direction(i) != null) {
+                            cannot_move = false;
+                            break;
+                        }
+                    if (cannot_move) {
+                        this.caught = true;
+                        game.set_cop_targets = true;
+                    }
+                } else if (this.hit_by_cop_1 && this.hit_by_cop_2) {
                     this.caught = true;
                     game.set_cop_targets = true;
                 }
@@ -380,37 +398,38 @@ class Robber_Sprite extends ColoredGridSprite {
     }
 
     position_in_direction(dir) {
+        var unavailable_position_bitmap = CaR_Grid.get_unavailable_position_bitmap();
         var position = null; switch (dir) {
             case DIR.U:
-                if (this.row > 0)
+                if (this.row > 0 && !unavailable_position_bitmap.get_2d(this.row - 1, this.col))
                     position = { 'row': this.row - 1, 'col': this.col };
                 break;
             case DIR.D:
-                if (this.row < game.grid.row - 1)
+                if (this.row < game.grid.row - 1 && !unavailable_position_bitmap.get_2d(this.row + 1, this.col))
                     position = { 'row': this.row + 1, 'col': this.col };
                 break;
             case DIR.L:
-                if (this.col > 0)
+                if (this.col > 0 && !unavailable_position_bitmap.get_2d(this.row, this.col - 1))
                     position = { 'row': this.row, 'col': this.col - 1 };
                 break;
             case DIR.R:
-                if (this.col < game.grid.col - 1)
+                if (this.col < game.grid.col - 1 && !unavailable_position_bitmap.get_2d(this.row, this.col + 1))
                     position = { 'row': this.row, 'col': this.col + 1 };
                 break;
             case DIR.UL:
-                if (this.row > 0 && this.col > 0)
+                if (this.row > 0 && this.col > 0 && !(unavailable_position_bitmap.get_2d(this.row - 1, this.col) && unavailable_position_bitmap.get_2d(this.row, this.col - 1)))
                     position = { 'row': this.row - 1, 'col': this.col - 1 };
                 break;
             case DIR.UR:
-                if (this.row > 0 && this.col < game.grid.col - 1)
+                if (this.row > 0 && this.col < game.grid.col - 1 && !(unavailable_position_bitmap.get_2d(this.row - 1, this.col) && unavailable_position_bitmap.get_2d(this.row, this.col + 1)))
                     position = { 'row': this.row - 1, 'col': this.col + 1 };
                 break;
             case DIR.DL:
-                if (this.row < game.grid.row - 1 && this.col > 0)
+                if (this.row < game.grid.row - 1 && this.col > 0 && !(unavailable_position_bitmap.get_2d(this.row + 1, this.col) && unavailable_position_bitmap.get_2d(this.row, this.col - 1)))
                     position = { 'row': this.row + 1, 'col': this.col - 1 };
                 break;
             case DIR.DR:
-                if (this.row < game.grid.row - 1 && this.col < game.grid.col - 1)
+                if (this.row < game.grid.row - 1 && this.col < game.grid.col - 1 && !(unavailable_position_bitmap.get_2d(this.row + 1, this.col) && unavailable_position_bitmap.get_2d(this.row, this.col + 1)))
                     position = { 'row': this.row + 1, 'col': this.col + 1 };
                 break;
         } return position;
@@ -429,7 +448,7 @@ class Robber_Sprite extends ColoredGridSprite {
     static update_all() {
         var unavailable_position_bitmap = CaR_Grid.get_unavailable_position_bitmap();
         for (var i = 0; i < game.robbers.length; i++) {
-            if (i != 0) {
+            if (i != game.robbers.length - 1) {
                 var min_threat_of_cops = null;
                 var min_threat_of_cops_dir = null;
                 for (var j = 0; j < 9; j++) {
@@ -477,7 +496,7 @@ class Robber_Sprite extends ColoredGridSprite {
                 if (!unavailable_position_bitmap.get_2d(row, col)) {
                     unavailable_position_bitmap.flip_2d(row, col);
                     var robber = new Robber_Sprite(row, col);
-                    if (i == 0) robber.attach_color(255, 255, 0, 255);
+                    if (i == number - 1) robber.attach_color(255, 255, 0, 255);
                     game.robbers.push(robber);
                     break;
                 }
@@ -506,6 +525,13 @@ class Obstacle_Sprite extends ColoredGridSprite {
             game.obstacles.splice(i, 1)[0].destroy();
     }
 
+    static create_obstacle(row, col) {
+        var unavailable_position_bitmap = CaR_Grid.get_unavailable_position_bitmap();
+        if (unavailable_position_bitmap.get_2d(row, col))
+            throw "Position already occupied error.";
+        game.obstacles.push(new Obstacle_Sprite(row, col));
+    }
+
     static create_random_obstacle(number) {
         for (var i = 0; i < number; i++)
             while (true) {
@@ -514,7 +540,6 @@ class Obstacle_Sprite extends ColoredGridSprite {
                 var col = rand - row * game.grid.col;
                 var unavailable_position_bitmap = CaR_Grid.get_unavailable_position_bitmap();
                 if (!unavailable_position_bitmap.get_2d(row, col)) {
-                    unavailable_position_bitmap.flip_2d(row, col);
                     game.obstacles.push(new Obstacle_Sprite(row, col));
                     break;
                 }
@@ -524,4 +549,120 @@ class Obstacle_Sprite extends ColoredGridSprite {
 
 //---------------------------------------------- Run
 game = new CaR(60, 3);
+// game.push_level(level_0_loader);
+game.push_level(level_1_loader);
+game.push_level(level_2_loader);
 game.start();
+
+function level_0_loader() {
+    game.grid = new CaR_Grid(20, 20);
+    Obstacle_Sprite.create_random_obstacle(10);
+}
+
+function level_fence_loader() {
+    for (var i = 0; i < game.grid.col; i++)
+        Obstacle_Sprite.create_obstacle(0, i);
+    for (var i = 1; i < game.grid.row - 1; i++) {
+        Obstacle_Sprite.create_obstacle(i, 0);
+        Obstacle_Sprite.create_obstacle(i, game.grid.col - 1);
+    }
+    for (var i = 0; i < game.grid.col; i++)
+        Obstacle_Sprite.create_obstacle(game.grid.row - 1, i);
+}
+
+function level_wall_loader(position_1, position_2) {
+    var row = position_1.row, col = position_1.col;
+    var get_position = function (index) {
+        var position = null;
+        switch (index) {
+            case 0:
+                if (row > 0)
+                    position = { 'row': row - 1, 'col': col };
+                else
+                    position = null;
+                break;
+            case 1:
+                if (row > 0 && col < game.grid.col - 1)
+                    position = { 'row': row - 1, 'col': col + 1 };
+                else
+                    position = null;
+                break;
+            case 2:
+                if (col < game.grid.col - 1)
+                    position = { 'row': row, 'col': col + 1 };
+                else
+                    position = null;
+                break;
+            case 3:
+                if (row < game.grid.row - 1 && col < game.grid.col - 1)
+                    position = { 'row': row + 1, 'col': col + 1 };
+                else
+                    position = null;
+                break;
+            case 4:
+                if (row < game.grid.row - 1)
+                    position = { 'row': row + 1, 'col': col };
+                else
+                    position = null;
+                break;
+            case 5:
+                if (row < game.grid.row - 1 && col > 0)
+                    position = { 'row': row + 1, 'col': col - 1 };
+                else
+                    position = null;
+                break;
+            case 6:
+                if (col > 0)
+                    position = { 'row': row, 'col': col - 1 };
+                else
+                    position = null;
+                break;
+            case 7:
+                if (row > 0 && col > 0)
+                    position = { 'row': row - 1, 'col': col - 1 };
+                else
+                    position = null;
+                break;
+        }
+        if (CaR_Grid.get_unavailable_position_bitmap().get_2d(position.row, position.col))
+            position = null;
+        return position;
+    }
+    while (row != position_2.row || col != position_2.col) {
+        Obstacle_Sprite.create_obstacle(row, col);
+        var min_d = null, min_p;
+        for (var i = 0; i < 8; i++) {
+            var p = get_position(i);
+            if (p == null)
+                continue;
+            var d = Math.sqrt(Math.pow(p.row - position_2.row, 2) + Math.pow(p.col - position_2.col, 2));
+            if (min_d == null || d < min_d) {
+                min_d = d;
+                min_p = p;
+            }
+        }
+        row = min_p.row;
+        col = min_p.col;
+    } Obstacle_Sprite.create_obstacle(row, col);
+}
+
+function level_1_loader() {
+    game.grid = new CaR_Grid(10, 10);
+    game.time_limit = 7;
+    level_fence_loader();
+    level_wall_loader({ 'row': 3, 'col': 1 }, { 'row': 3, 'col': 5 });
+    level_wall_loader({ 'row': 6, 'col': 4 }, { 'row': 6, 'col': 8 });
+}
+
+function level_2_loader() {
+    game.grid = new CaR_Grid(20, 20);
+    game.time_limit = 10;
+    level_fence_loader();
+    level_wall_loader({ 'row': 1, 'col': 4 }, { 'row': 6, 'col': 4 });
+    level_wall_loader({ 'row': 4, 'col': 5 }, { 'row': 4, 'col': 8 });
+    level_wall_loader({ 'row': 1, 'col': 12 }, { 'row': 10, 'col': 12 });
+    level_wall_loader({ 'row': 5, 'col': 16 }, { 'row': 5, 'col': 18 });
+    level_wall_loader({ 'row': 9, 'col': 1 }, { 'row': 9, 'col': 6 });
+    level_wall_loader({ 'row': 18, 'col': 4 }, { 'row': 13, 'col': 9 });
+    level_wall_loader({ 'row': 13, 'col': 13 }, { 'row': 18, 'col': 18 });
+}
