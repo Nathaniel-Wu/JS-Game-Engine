@@ -86,10 +86,15 @@ class CaR extends Game {
         if (this.restart_flag_delay_set)
             return;
         if (!game.real_time) {
-            if (this.first_dir != null)
-                this.update_count = 0;
-            else
+            if (this.first_dir == null && this.second_dir == null)
                 this.update_count = 1;
+            else {
+                if (this.update_count != 0 && this.second_dir == null) {
+                    this.update_count = 0;
+                    return;
+                } else
+                    this.update_count = 0;
+            }
         }
         if (this.update_count == 0) {
             var player_direction = null;
