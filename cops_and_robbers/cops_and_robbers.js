@@ -617,7 +617,7 @@ class Robber_Sprite extends ColoredGridSprite {
         if (game.game_mode == 0) {
             if (game.robbers[game.robbers.length - 1].player_intended_direction != null) {
                 game.robbers[game.robbers.length - 1].move_in_direction(game.robbers[game.robbers.length - 1].player_intended_direction);
-                game.robbers[game.robbers.length - 1].player_intended_direction;
+                game.robbers[game.robbers.length - 1].player_intended_direction = null;
             }
             game.robbers[game.robbers.length - 1].update();
         }
