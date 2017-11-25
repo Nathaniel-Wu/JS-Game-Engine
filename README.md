@@ -45,3 +45,19 @@ Press left & right arrow key to re-orient barrel, press space key to shoot the p
 When the shot bubble collides with any existing bubble, all connect bubbles of the same color will disappear.
 
 All existing bubble will be moved down every 20 seconds, game will be over when they crosses the line.
+
+##### 4. [Cops and Robbers R](https://pages.github.ncsu.edu/twu23/Engine/cops_and_robbers)
+
+A Cops and Robbers-like game. Cops are represented by sprites flashing in blue, black and gray; robbers are cyan sprites.
+
+This game provides two modes, in one mode you control a robber against cops, in the other you play as a cop to catch robbers.
+
+In Addition, the game provides two way to of turn-taking, one is that the game will only take turn when player makes input, the other is that the game will take turn at 2 Hz regardless of player input, which is more challenging.
+
+If you choose to play as robber, use arrow key to navigate your robber (yellow colored) to move in 8 directions; other robbers are controlled by AI.
+
+If you choose to play as cop, also use arrow key to navigate your cop (grey colored) to move in 8 directions; other cops are controlled by AI.
+
+If 2 cops have been at 2 adjacent position of robber at the same time, or if a robber can't move because it's blocked by 1 police and obstacles, that robber is caught, and can't move anymore.
+
+If all robbers are caught within a time limit, cops win, other wise robbers win, you need to win in order to load the next level, otherwise game will reload the current level.
