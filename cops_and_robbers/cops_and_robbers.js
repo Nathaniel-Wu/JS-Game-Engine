@@ -20,6 +20,7 @@ class CaR extends Game {
         this.turn_count = 0;
         this.game_mode = null;
         this.real_time = true;
+        this.real_time_temporarily_set = false;
     }
 
     init() {
@@ -28,6 +29,10 @@ class CaR extends Game {
     }
 
     load() {
+        if (this.real_time && this.real_time_temporarily_set) {
+            this.real_time = false;
+            this.real_time_temporarily_set = false;
+        }
         this.obstacles = new Array();
         this.cops = new Array();
         this.robbers = new Array();
@@ -85,15 +90,21 @@ class CaR extends Game {
         super.update();
         if (this.restart_flag_delay_set)
             return;
-        if (!game.real_time) {
-            if (this.first_dir == null && this.second_dir == null)
-                this.update_count = 1;
-            else {
-                if (this.update_count != 0 && this.second_dir == null) {
-                    this.update_count = 0;
-                    return;
-                } else
-                    this.update_count = 0;
+        if (!this.real_time) {
+            if (this.game_mode == 0 && this.robbers[this.robbers.length - 1].caught) {
+                this.real_time = true;
+                this.real_time_temporarily_set = true;
+                this.update_count = 0;
+            } else {
+                if (this.first_dir == null && this.second_dir == null)
+                    this.update_count = 1;
+                else {
+                    if (this.update_count != 0 && this.second_dir == null) {
+                        this.update_count = 0;
+                        return;
+                    } else
+                        this.update_count = 0;
+                }
             }
         }
         if (this.update_count == 0) {
