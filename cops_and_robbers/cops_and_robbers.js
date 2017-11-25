@@ -16,7 +16,15 @@ class CaR extends Game {
         this.first_dir = null;
         this.second_dir = null;
         this.level_index = 0;
-        this.time_limit = 10;
+        this.turn_limit = 20;
+        this.turn_count = 0;
+        this.game_mode = null;
+        this.real_time = true;
+    }
+
+    init() {
+        super.init();
+        this.ui_stack.push(new Role_Select());
     }
 
     load() {
@@ -24,9 +32,6 @@ class CaR extends Game {
         this.cops = new Array();
         this.robbers = new Array();
         this.load_level(this.level_index % this.level_load_functions.length);
-        this.level_index++;
-        Cop_Sprite.create_random_cop(2);
-        Robber_Sprite.create_random_robber(2);
         this.si = this.input_event_subscription_manager.add_subscriber(this);
         this.set_cop_targets = true;
         this.cop_target_robbers = null;
@@ -34,6 +39,7 @@ class CaR extends Game {
         this.start_time = new Date().getTime();
         this.first_dir = null;
         this.second_dir = null;
+        this.turn_count = 0;
     }
 
     deload() {
@@ -77,29 +83,34 @@ class CaR extends Game {
 
     update() {
         super.update();
-        if (new Date().getTime() - this.start_time > this.time_limit * 1000) {
-            if (!this.restart_flag_delay_set) {
-                this.ui_stack.push(new Robbers_Win_Message());
-                var t = this; setTimeout(function () { t.restart_flag = true }, 3000); this.restart_flag_delay_set = true;
-            }
-        }
         if (this.restart_flag_delay_set)
             return;
+        if (!game.real_time) {
+            if (this.first_dir != null)
+                this.update_count = 0;
+            else
+                this.update_count = 1;
+        }
         if (this.update_count == 0) {
+            var player_direction = null;
             if (this.first_dir != null || this.second_dir != null) {
                 if (this.second_dir != null) {
                     if ((this.first_dir == DIR.U && this.second_dir == DIR.L) || (this.first_dir == DIR.L && this.second_dir == DIR.U))
-                        this.robbers[this.robbers.length - 1].move_in_direction(DIR.UL);
+                        player_direction = DIR.UL;
                     else if ((this.first_dir == DIR.U && this.second_dir == DIR.R) || (this.first_dir == DIR.R && this.second_dir == DIR.U))
-                        this.robbers[this.robbers.length - 1].move_in_direction(DIR.UR);
+                        player_direction = DIR.UR;
                     else if ((this.first_dir == DIR.D && this.second_dir == DIR.L) || (this.first_dir == DIR.L && this.second_dir == DIR.D))
-                        this.robbers[this.robbers.length - 1].move_in_direction(DIR.DL);
+                        player_direction = DIR.DL;
                     else if ((this.first_dir == DIR.D && this.second_dir == DIR.R) || (this.first_dir == DIR.R && this.second_dir == DIR.D))
-                        this.robbers[this.robbers.length - 1].move_in_direction(DIR.DR);
+                        player_direction = DIR.DR;
                     else
-                        this.robbers[this.robbers.length - 1].move_in_direction(this.second_dir);
+                        player_direction = this.second_dir;
                 } else if (this.first_dir != null)
-                    this.robbers[this.robbers.length - 1].move_in_direction(this.first_dir);
+                    player_direction = this.first_dir;
+                if (this.game_mode == 0)
+                    this.robbers[this.robbers.length - 1].player_intended_direction = player_direction;
+                else
+                    this.cops[this.cops.length - 1].player_intended_direction = player_direction;
             }
             this.first_dir = null;
             this.second_dir = null;
@@ -120,14 +131,26 @@ class CaR extends Game {
             if (uncaught_robbers_count == 0) {
                 if (!this.restart_flag_delay_set) {
                     this.restart_flag_delay_set = true;
+                    if (this.game_mode == 1)
+                        this.level_index++;
                     var t = this;
                     setTimeout(function () {
                         t.ui_stack.push(new Cops_Win_Message());
-                        setTimeout(function () { t.restart_flag = true }, 2000);
-                    }, 1000);
+                        setTimeout(function () { t.restart_flag = true }, 2500);
+                    }, 500);
                 }
             }
-        } this.update_count = (this.update_count + 1) % this.refresh_interval;
+            this.turn_count++;
+            if (this.turn_count >= this.turn_limit)
+                if (!this.restart_flag_delay_set) {
+                    this.ui_stack.push(new Robbers_Win_Message());
+                    if (this.game_mode == 0)
+                        this.level_index++;
+                    var t = this; setTimeout(function () { t.restart_flag = true }, 3000); this.restart_flag_delay_set = true;
+                }
+        }
+        if (game.real_time)
+            this.update_count = (this.update_count + 1) % this.refresh_interval;
     }
 
     draw() {
@@ -136,6 +159,121 @@ class CaR extends Game {
         Obstacle_Sprite.draw_all();
         Robber_Sprite.draw_all();
         Cop_Sprite.draw_all();
+    }
+
+    ui_loop() {
+        if (this.ui_stack.stack[0] instanceof Role_Select) {
+            if (this.ui_stack.stack[0].selection_made) {
+                this.game_mode = this.ui_stack.stack[0].selection;
+                this.ui_stack.pop().destroy();
+                this.ui_stack.push(new RealTime_Select());
+            }
+        } else if (this.ui_stack.stack[0] instanceof RealTime_Select) {
+            if (this.ui_stack.stack[0].selection_made) {
+                this.real_time = this.ui_stack.stack[0].selection;
+                this.ui_stack.deload();
+                var t = this;
+                var restart_ = function () {
+                    t.stop_ui_loop();
+                    t.load();
+                    t.start_loop();
+                    t.start_ui_loop();
+                }; restart_();
+            }
+        }
+        super.ui_loop();
+    }
+}
+
+class Role_Select extends UI {
+    constructor() {
+        super(game, 1.0, true);
+        this.selection_made = false;
+        this.selection = null;
+        this.input_event_subscription_manager = this.game.input_event_subscription_manager;
+        this.si = this.input_event_subscription_manager.add_subscriber(this);
+        this.robber = new Colored_Sprite(0, 0, canvas.width, canvas.height / 2, 255, 255, 0, 255);
+        this.robber.attach_text(new Text_specs("Play as Robber", 60, "Helvetica"));
+        this.cop = new Colored_Sprite(0, canvas.height / 2, canvas.width, canvas.height / 2, 0, 0, 255, 255);
+        this.cop.attach_text(new Text_specs("Play as Cop", 60, "Helvetica"));
+    }
+
+    update() {
+        this.robber.update();
+        this.cop.update();
+    }
+
+    actual_draw() {
+        this.robber.draw();
+        this.cop.draw();
+    }
+
+    destroy() {
+        this.robber.destroy();
+        this.cop.destroy();
+        this.input_event_subscription_manager.remove_subscriber(this.si);
+    }
+
+    handle_input_event(event) {
+        this.input_event_subscription_manager.set_exclusive(this.si, event.type);
+        switch (event.type) {
+            case IEType.SELECT:
+                if (0 <= event.coord.x && event.coord.x < canvas.width && 0 <= event.coord.y && event.coord.y <= canvas.height) {
+                    if (event.coord.y < canvas.height / 2)
+                        this.selection = 0;
+                    else
+                        this.selection = 1;
+                    this.selection_made = true;
+                }
+                break;
+        }
+        this.input_event_subscription_manager.release_exclusive(this.si, event.type);
+    }
+}
+
+class RealTime_Select extends UI {
+    constructor() {
+        super(game, 1.0, true);
+        this.selection_made = false;
+        this.selection = null;
+        this.input_event_subscription_manager = this.game.input_event_subscription_manager;
+        this.si = this.input_event_subscription_manager.add_subscriber(this);
+        this.real_time_yes = new Colored_Sprite(0, 0, canvas.width, canvas.height / 2, 255, 255, 0, 255);
+        this.real_time_yes.attach_text(new Text_specs("Take Turn Regardless of Player", 60, "Helvetica"));
+        this.real_time_no = new Colored_Sprite(0, canvas.height / 2, canvas.width, canvas.height / 2, 255, 0, 0, 255);
+        this.real_time_no.attach_text(new Text_specs("Take Turn on Player Movement", 60, "Helvetica"));
+    }
+
+    update() {
+        this.real_time_yes.update();
+        this.real_time_no.update();
+    }
+
+    actual_draw() {
+        this.real_time_yes.draw();
+        this.real_time_no.draw();
+    }
+
+    destroy() {
+        this.real_time_yes.destroy();
+        this.real_time_no.destroy();
+        this.input_event_subscription_manager.remove_subscriber(this.si);
+    }
+
+    handle_input_event(event) {
+        this.input_event_subscription_manager.set_exclusive(this.si, event.type);
+        switch (event.type) {
+            case IEType.SELECT:
+                if (0 <= event.coord.x && event.coord.x < canvas.width && 0 <= event.coord.y && event.coord.y <= canvas.height) {
+                    if (event.coord.y < canvas.height / 2)
+                        this.selection = true;
+                    else
+                        this.selection = false;
+                    this.selection_made = true;
+                }
+                break;
+        }
+        this.input_event_subscription_manager.release_exclusive(this.si, event.type);
     }
 }
 
@@ -177,16 +315,65 @@ class CaR_Grid extends Grid {
     }
 }
 
+function position_in_direction(grid_sprite, dir) {
+    var unavailable_position_bitmap = CaR_Grid.get_unavailable_position_bitmap();
+    var position = null; switch (dir) {
+        case DIR.U:
+            if (grid_sprite.row > 0 && !unavailable_position_bitmap.get_2d(grid_sprite.row - 1, grid_sprite.col))
+                position = { 'row': grid_sprite.row - 1, 'col': grid_sprite.col };
+            break;
+        case DIR.D:
+            if (grid_sprite.row < game.grid.row - 1 && !unavailable_position_bitmap.get_2d(grid_sprite.row + 1, grid_sprite.col))
+                position = { 'row': grid_sprite.row + 1, 'col': grid_sprite.col };
+            break;
+        case DIR.L:
+            if (grid_sprite.col > 0 && !unavailable_position_bitmap.get_2d(grid_sprite.row, grid_sprite.col - 1))
+                position = { 'row': grid_sprite.row, 'col': grid_sprite.col - 1 };
+            break;
+        case DIR.R:
+            if (grid_sprite.col < game.grid.col - 1 && !unavailable_position_bitmap.get_2d(grid_sprite.row, grid_sprite.col + 1))
+                position = { 'row': grid_sprite.row, 'col': grid_sprite.col + 1 };
+            break;
+        case DIR.UL:
+            if (grid_sprite.row > 0 && grid_sprite.col > 0 && !(unavailable_position_bitmap.get_2d(grid_sprite.row - 1, grid_sprite.col) && unavailable_position_bitmap.get_2d(grid_sprite.row, grid_sprite.col - 1)))
+                position = { 'row': grid_sprite.row - 1, 'col': grid_sprite.col - 1 };
+            break;
+        case DIR.UR:
+            if (grid_sprite.row > 0 && grid_sprite.col < game.grid.col - 1 && !(unavailable_position_bitmap.get_2d(grid_sprite.row - 1, grid_sprite.col) && unavailable_position_bitmap.get_2d(grid_sprite.row, grid_sprite.col + 1)))
+                position = { 'row': grid_sprite.row - 1, 'col': grid_sprite.col + 1 };
+            break;
+        case DIR.DL:
+            if (grid_sprite.row < game.grid.row - 1 && grid_sprite.col > 0 && !(unavailable_position_bitmap.get_2d(grid_sprite.row + 1, grid_sprite.col) && unavailable_position_bitmap.get_2d(grid_sprite.row, grid_sprite.col - 1)))
+                position = { 'row': grid_sprite.row + 1, 'col': grid_sprite.col - 1 };
+            break;
+        case DIR.DR:
+            if (grid_sprite.row < game.grid.row - 1 && grid_sprite.col < game.grid.col - 1 && !(unavailable_position_bitmap.get_2d(grid_sprite.row + 1, grid_sprite.col) && unavailable_position_bitmap.get_2d(grid_sprite.row, grid_sprite.col + 1)))
+                position = { 'row': grid_sprite.row + 1, 'col': grid_sprite.col + 1 };
+            break;
+    } return position;
+}
+
 class Cop_Sprite extends Flashing_ColoredGridSprite {
     constructor(row, col) {
         super(row, col, game.grid, Math.floor(game.framerate * 0.333));
         this.attach_color(0, 0, 0, 255);
         this.attach_color(0, 0, 255, 255);
         this.attach_color(223, 223, 223, 255);
+        this.player_intended_direction = null;
     }
 
     move_prediction() {
         return new Cop_Sprite(this.row, this.col);
+    }
+
+    move_in_direction(dir) {
+        if (this.movable) {
+            var unavailable_position_bitmap = CaR_Grid.get_unavailable_position_bitmap();
+            var intended_position = position_in_direction(this, dir);
+            if (intended_position)
+                if (!unavailable_position_bitmap.get_2d(intended_position.row, intended_position.col))
+                    this.move_to(intended_position);
+        }
     }
 
     resolve(collision) {
@@ -205,8 +392,12 @@ class Cop_Sprite extends Flashing_ColoredGridSprite {
                     uncaught_robber_indices.push(i);
             var available_cop_indices = new Array();
             var cop_idle_bitmap = new bitmap(game.cops.length); cop_idle_bitmap.fill();
-            for (var i = 0; i < game.cops.length; i++)
-                available_cop_indices.push(i);
+            if (game.game_mode != 1)
+                for (var i = 0; i < game.cops.length; i++)
+                    available_cop_indices.push(i);
+            else
+                for (var i = 0; i < game.cops.length - 1; i++)
+                    available_cop_indices.push(i);
             var cops_per_robber = new Array(uncaught_robber_indices.length); cops_per_robber.fill(0);
             if (available_cop_indices.length >= 2 * uncaught_robber_indices.length) {
                 const min_cops_per_robber = Math.floor(available_cop_indices.length / uncaught_robber_indices.length);
@@ -244,8 +435,17 @@ class Cop_Sprite extends Flashing_ColoredGridSprite {
             }
             game.set_cop_targets = false;
         }
+        if (game.game_mode == 1) {
+            if (game.cops[game.cops.length - 1].player_intended_direction != null) {
+                game.cops[game.cops.length - 1].move_in_direction(game.cops[game.cops.length - 1].player_intended_direction);
+                game.cops[game.cops.length - 1].player_intended_direction = null;
+            }
+            game.cops[game.cops.length - 1].update();
+        }
         var unavailable_position_bitmap = CaR_Grid.get_unavailable_position_bitmap();
         for (var i = 0; i < game.cops.length; i++) {
+            if (i == game.cops.length - 1 && game.game_mode == 1)
+                continue;
             var target_position_index = 0;
             var target_position = null;
             var clone_position_object = function (position_) { return { 'row': position_.row, 'col': position_.col }; }
@@ -343,7 +543,12 @@ class Cop_Sprite extends Flashing_ColoredGridSprite {
                 var unavailable_position_bitmap = CaR_Grid.get_unavailable_position_bitmap();
                 if (!unavailable_position_bitmap.get_2d(row, col)) {
                     unavailable_position_bitmap.flip_2d(row, col);
-                    game.cops.push(new Cop_Sprite(row, col));
+                    var cop = new Cop_Sprite(row, col);
+                    if (game.game_mode == 1 && i == number - 1) {
+                        cop.colors = new Array();
+                        cop.attach_color(223, 223, 223, 255);
+                    };
+                    game.cops.push(cop);
                     break;
                 }
             }
@@ -357,6 +562,7 @@ class Robber_Sprite extends ColoredGridSprite {
         this.hit_by_cop_1 = false;
         this.hit_by_cop_2 = false;
         this.caught = false;
+        this.player_intended_direction = null;
     }
 
     move_prediction() {
@@ -371,10 +577,13 @@ class Robber_Sprite extends ColoredGridSprite {
                     this.hit_by_cop_1 = true;
                 else if (!this.hit_by_cop_2)
                     this.hit_by_cop_2 = true;
-                if (this.hit_by_cop_1 && (!this.hit_by_cop_2)) {
+                if (this.hit_by_cop_1 && this.hit_by_cop_2) {
+                    this.caught = true;
+                    game.set_cop_targets = true;
+                } else if (this.hit_by_cop_1 && (!this.hit_by_cop_2)) {
                     var cannot_move = true;
-                    for (var i = 0; i < 8; i++)
-                        if (this.position_in_direction(i) != null) {
+                    for (var j = 0; j < 8; j++)
+                        if (position_in_direction(this, j) != null) {
                             cannot_move = false;
                             break;
                         }
@@ -382,9 +591,6 @@ class Robber_Sprite extends ColoredGridSprite {
                         this.caught = true;
                         game.set_cop_targets = true;
                     }
-                } else if (this.hit_by_cop_1 && this.hit_by_cop_2) {
-                    this.caught = true;
-                    game.set_cop_targets = true;
                 }
             }
     }
@@ -397,48 +603,10 @@ class Robber_Sprite extends ColoredGridSprite {
         }
     }
 
-    position_in_direction(dir) {
-        var unavailable_position_bitmap = CaR_Grid.get_unavailable_position_bitmap();
-        var position = null; switch (dir) {
-            case DIR.U:
-                if (this.row > 0 && !unavailable_position_bitmap.get_2d(this.row - 1, this.col))
-                    position = { 'row': this.row - 1, 'col': this.col };
-                break;
-            case DIR.D:
-                if (this.row < game.grid.row - 1 && !unavailable_position_bitmap.get_2d(this.row + 1, this.col))
-                    position = { 'row': this.row + 1, 'col': this.col };
-                break;
-            case DIR.L:
-                if (this.col > 0 && !unavailable_position_bitmap.get_2d(this.row, this.col - 1))
-                    position = { 'row': this.row, 'col': this.col - 1 };
-                break;
-            case DIR.R:
-                if (this.col < game.grid.col - 1 && !unavailable_position_bitmap.get_2d(this.row, this.col + 1))
-                    position = { 'row': this.row, 'col': this.col + 1 };
-                break;
-            case DIR.UL:
-                if (this.row > 0 && this.col > 0 && !(unavailable_position_bitmap.get_2d(this.row - 1, this.col) && unavailable_position_bitmap.get_2d(this.row, this.col - 1)))
-                    position = { 'row': this.row - 1, 'col': this.col - 1 };
-                break;
-            case DIR.UR:
-                if (this.row > 0 && this.col < game.grid.col - 1 && !(unavailable_position_bitmap.get_2d(this.row - 1, this.col) && unavailable_position_bitmap.get_2d(this.row, this.col + 1)))
-                    position = { 'row': this.row - 1, 'col': this.col + 1 };
-                break;
-            case DIR.DL:
-                if (this.row < game.grid.row - 1 && this.col > 0 && !(unavailable_position_bitmap.get_2d(this.row + 1, this.col) && unavailable_position_bitmap.get_2d(this.row, this.col - 1)))
-                    position = { 'row': this.row + 1, 'col': this.col - 1 };
-                break;
-            case DIR.DR:
-                if (this.row < game.grid.row - 1 && this.col < game.grid.col - 1 && !(unavailable_position_bitmap.get_2d(this.row + 1, this.col) && unavailable_position_bitmap.get_2d(this.row, this.col + 1)))
-                    position = { 'row': this.row + 1, 'col': this.col + 1 };
-                break;
-        } return position;
-    }
-
     move_in_direction(dir) {
         if (this.movable) {
             var unavailable_position_bitmap = CaR_Grid.get_unavailable_position_bitmap();
-            var intended_position = this.position_in_direction(dir);
+            var intended_position = position_in_direction(this, dir);
             if (intended_position)
                 if (!unavailable_position_bitmap.get_2d(intended_position.row, intended_position.col))
                     this.move_to(intended_position);
@@ -446,32 +614,39 @@ class Robber_Sprite extends ColoredGridSprite {
     }
 
     static update_all() {
+        if (game.game_mode == 0) {
+            if (game.robbers[game.robbers.length - 1].player_intended_direction != null) {
+                game.robbers[game.robbers.length - 1].move_in_direction(game.robbers[game.robbers.length - 1].player_intended_direction);
+                game.robbers[game.robbers.length - 1].player_intended_direction;
+            }
+            game.robbers[game.robbers.length - 1].update();
+        }
         var unavailable_position_bitmap = CaR_Grid.get_unavailable_position_bitmap();
         for (var i = 0; i < game.robbers.length; i++) {
-            if (i != game.robbers.length - 1) {
-                var min_threat_of_cops = null;
-                var min_threat_of_cops_dir = null;
-                for (var j = 0; j < 9; j++) {
-                    var p;
-                    if (j < 8)
-                        p = game.robbers[i].position_in_direction(j);
-                    else
-                        p = { 'row': this.row, 'col': this.col };
-                    if (p == null || (j != 8 && unavailable_position_bitmap.get_2d(p.row, p.col)))
-                        continue;
-                    var distance_to_cops = 0;
-                    for (var k = 0; k < game.cops.length; k++) {
-                        var d = Math.abs(game.cops[k].row - p.row) + Math.abs(game.cops[k].col - p.col);
-                        distance_to_cops += d * Math.pow(2, 20 - d);
-                    }
-                    if (min_threat_of_cops == null || distance_to_cops < min_threat_of_cops) {
-                        min_threat_of_cops = distance_to_cops;
-                        min_threat_of_cops_dir = j;
-                    }
+            if (i == game.robbers.length - 1 && game.game_mode == 0)
+                continue;
+            var min_threat_of_cops = null;
+            var min_threat_of_cops_dir = null;
+            for (var j = 0; j < 9; j++) {
+                var p;
+                if (j < 8)
+                    p = position_in_direction(game.robbers[i], j);
+                else
+                    p = { 'row': this.row, 'col': this.col };
+                if (p == null || (j != 8 && unavailable_position_bitmap.get_2d(p.row, p.col)))
+                    continue;
+                var distance_to_cops = 0;
+                for (var k = 0; k < game.cops.length; k++) {
+                    var d = Math.abs(game.cops[k].row - p.row) + Math.abs(game.cops[k].col - p.col);
+                    distance_to_cops += d * Math.pow(2, 20 - d);
                 }
-                if (min_threat_of_cops_dir < 8)
-                    game.robbers[i].move_in_direction(min_threat_of_cops_dir);
+                if (min_threat_of_cops == null || distance_to_cops < min_threat_of_cops) {
+                    min_threat_of_cops = distance_to_cops;
+                    min_threat_of_cops_dir = j;
+                }
             }
+            if (min_threat_of_cops_dir < 8)
+                game.robbers[i].move_in_direction(min_threat_of_cops_dir);
             game.robbers[i].update();
         }
     }
@@ -496,7 +671,7 @@ class Robber_Sprite extends ColoredGridSprite {
                 if (!unavailable_position_bitmap.get_2d(row, col)) {
                     unavailable_position_bitmap.flip_2d(row, col);
                     var robber = new Robber_Sprite(row, col);
-                    if (i == number - 1) robber.attach_color(255, 255, 0, 255);
+                    if (game.game_mode == 0 && i == number - 1) robber.attach_color(255, 255, 0, 255);
                     game.robbers.push(robber);
                     break;
                 }
@@ -548,11 +723,11 @@ class Obstacle_Sprite extends ColoredGridSprite {
 }
 
 //---------------------------------------------- Run
-game = new CaR(60, 3);
+game = new CaR(60, 2);
 // game.push_level(level_0_loader);
 game.push_level(level_1_loader);
 game.push_level(level_2_loader);
-game.start();
+game.start_ui_only();
 
 function level_0_loader() {
     game.grid = new CaR_Grid(20, 20);
@@ -648,15 +823,23 @@ function level_wall_loader(position_1, position_2) {
 
 function level_1_loader() {
     game.grid = new CaR_Grid(10, 10);
-    game.time_limit = 7;
+    if (game.real_time)
+        game.turn_limit = 20;
+    else
+        game.turn_limit = 30;
     level_fence_loader();
     level_wall_loader({ 'row': 3, 'col': 1 }, { 'row': 3, 'col': 5 });
     level_wall_loader({ 'row': 6, 'col': 4 }, { 'row': 6, 'col': 8 });
+    Cop_Sprite.create_random_cop(2);
+    Robber_Sprite.create_random_robber(2);
 }
 
 function level_2_loader() {
     game.grid = new CaR_Grid(20, 20);
-    game.time_limit = 10;
+    if (game.real_time)
+        game.turn_limit = 30;
+    else
+        game.turn_limit = 45;
     level_fence_loader();
     level_wall_loader({ 'row': 1, 'col': 4 }, { 'row': 6, 'col': 4 });
     level_wall_loader({ 'row': 4, 'col': 5 }, { 'row': 4, 'col': 8 });
@@ -665,4 +848,6 @@ function level_2_loader() {
     level_wall_loader({ 'row': 9, 'col': 1 }, { 'row': 9, 'col': 6 });
     level_wall_loader({ 'row': 18, 'col': 4 }, { 'row': 13, 'col': 9 });
     level_wall_loader({ 'row': 13, 'col': 13 }, { 'row': 18, 'col': 18 });
+    Cop_Sprite.create_random_cop(5);
+    Robber_Sprite.create_random_robber(3);
 }
