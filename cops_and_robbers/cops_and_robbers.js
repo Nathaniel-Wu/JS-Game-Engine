@@ -756,6 +756,7 @@ game = new CaR(60, 2);
 // game.push_level(level_0_loader);
 game.push_level(level_1_loader);
 game.push_level(level_2_loader);
+game.push_level(level_3_loader);
 game.start_ui_only();
 
 function level_0_loader() {
@@ -864,6 +865,23 @@ function level_1_loader() {
 }
 
 function level_2_loader() {
+    game.grid = new CaR_Grid(9, 9);
+    if (game.real_time)
+        game.turn_limit = 20;
+    else
+        game.turn_limit = 30;
+    level_fence_loader();
+    level_wall_loader({ 'row': 2, 'col': 2 }, { 'row': 4, 'col': 2 });
+    level_wall_loader({ 'row': 2, 'col': 4 }, { 'row': 3, 'col': 4 });
+    level_wall_loader({ 'row': 2, 'col': 6 }, { 'row': 3, 'col': 6 });
+    level_wall_loader({ 'row': 5, 'col': 4 }, { 'row': 5, 'col': 6 });
+    level_wall_loader({ 'row': 6, 'col': 3 }, { 'row': 6, 'col': 4 });
+    level_wall_loader({ 'row': 6, 'col': 1 }, { 'row': 6, 'col': 1 });
+    Cop_Sprite.create_random_cop(2);
+    Robber_Sprite.create_random_robber(2);
+}
+
+function level_3_loader() {
     game.grid = new CaR_Grid(20, 20);
     if (game.real_time)
         game.turn_limit = 30;
