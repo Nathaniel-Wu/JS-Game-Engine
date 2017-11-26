@@ -60,4 +60,4 @@ If you choose to play as cop, also use arrow key to navigate your cop (grey colo
 
 If 2 cops have been at 2 adjacent position of robber at the same time, or if a robber can't move because it's blocked by 1 police and obstacles, that robber is caught, and can't move anymore.
 
-If all robbers are caught within a time limit, cops win, other wise robbers win, you need to win in order to load the next level, otherwise game will reload the current level.
+If all robbers are caught within a time limit, cops win, other wise robbers win; you need to win in order to load the next level, otherwise game will reload the current level; the game provides 3 levels at the moment.
