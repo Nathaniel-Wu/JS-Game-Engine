@@ -92,6 +92,7 @@ class Game {
         this.ui_canvas.addEventListener("mousemove", onMouseMove);
         this.ui_canvas.addEventListener("mouseup", onMouseUp);
         document.addEventListener("keydown", onKeyDown);
+        document.addEventListener("keyup", onKeyUp);
         this.switch_context();
     }
 
@@ -2290,7 +2291,7 @@ class WorldTree extends GObject {
 
 //---------------------------------------------- Input Events
 
-const IEType_total = 12;
+const IEType_total = 21;
 const IEType = {
     SELECT: 0,
     DRAG: 1,
@@ -2303,7 +2304,16 @@ const IEType = {
     W: 8,
     S: 9,
     A: 10,
-    D: 11
+    D: 11,
+    UP_UP: 12,
+    DOWN_UP: 13,
+    LEFT_UP: 14,
+    RIGHT_UP: 15,
+    SPACE_UP: 16,
+    W_UP: 17,
+    S_UP: 18,
+    A_UP: 19,
+    D_UP: 20
 };
 
 class Input_Event {
@@ -2366,6 +2376,38 @@ function onKeyDown(e) {
             break;
         case 68:
             input_event_subscription_manager.publish_input_event(new Input_Event(IEType.D, null));
+            break;
+    }
+}
+
+function onKeyUp(e) {
+    switch (e.keyCode) {
+        case 38:
+            input_event_subscription_manager.publish_input_event(new Input_Event(IEType.UP_UP, null));
+            break;
+        case 40:
+            input_event_subscription_manager.publish_input_event(new Input_Event(IEType.DOWN_UP, null));
+            break;
+        case 37:
+            input_event_subscription_manager.publish_input_event(new Input_Event(IEType.LEFT_UP, null));
+            break;
+        case 39:
+            input_event_subscription_manager.publish_input_event(new Input_Event(IEType.RIGHT_UP, null));
+            break;
+        case 32:
+            input_event_subscription_manager.publish_input_event(new Input_Event(IEType.SPACE_UP, null));
+            break;
+        case 87:
+            input_event_subscription_manager.publish_input_event(new Input_Event(IEType.W_UP, null));
+            break;
+        case 83:
+            input_event_subscription_manager.publish_input_event(new Input_Event(IEType.S_UP, null));
+            break;
+        case 65:
+            input_event_subscription_manager.publish_input_event(new Input_Event(IEType.A_UP, null));
+            break;
+        case 68:
+            input_event_subscription_manager.publish_input_event(new Input_Event(IEType.D_UP, null));
             break;
     }
 }

@@ -13,14 +13,18 @@ class CaR extends Game {
         this.cop_target_robbers = null;
         this.restart_flag_delay_set = false;
         this.start_time = null;
-        this.first_dir = null;
-        this.second_dir = null;
         this.level_index = 0;
         this.turn_limit = 20;
         this.turn_count = 0;
         this.game_mode = null;
         this.real_time = true;
         this.real_time_temporarily_set = false;
+        this.input_queue = null;
+        this.UP_pressed = false;
+        this.DOWN_pressed = false;
+        this.LEFT_pressed = false;
+        this.RIGHT_pressed = false;
+        this.input_wait = 0;
     }
 
     init() {
@@ -42,9 +46,13 @@ class CaR extends Game {
         this.cop_target_robbers = null;
         this.restart_flag_delay_set = false;
         this.start_time = new Date().getTime();
-        this.first_dir = null;
-        this.second_dir = null;
         this.turn_count = 0;
+        this.input_queue = new Array();
+        this.input_wait = 0;
+        this.UP_pressed = false;
+        this.DOWN_pressed = false;
+        this.LEFT_pressed = false;
+        this.RIGHT_pressed = false;
     }
 
     deload() {
@@ -58,36 +66,40 @@ class CaR extends Game {
 
     handle_input_event(event) {
         this.input_event_subscription_manager.set_exclusive(this.si, event.type);
-        var dir = null;
-        switch (event.type) {
-            case IEType.UP:
-                dir = DIR.U;
-                break;
-            case IEType.DOWN:
-                dir = DIR.D;
-                break;
-            case IEType.LEFT:
-                dir = DIR.L;
-                break;
-            case IEType.RIGHT:
-                dir = DIR.R;
-                break;
-        }
-        if (dir != null) {
-            if (this.first_dir == null)
-                this.first_dir = dir;
-            else if (this.second_dir == null && this.first_dir != dir)
-                this.second_dir = dir;
-            else if (this.first_dir != dir && this.second_dir != dir) {
-                this.first_dir = this.second_dir;
-                this.second_dir = dir;
-            }
-        }
+        if (event.type == IEType.UP || event.type == IEType.DOWN || event.type == IEType.LEFT || event.type == IEType.RIGHT)
+            this.input_queue.push(event.type);
         this.input_event_subscription_manager.release_exclusive(this.si, event.type);
     }
 
     update() {
         super.update();
+        if (!this.real_time) {
+            if (this.input_wait == 0 && this.input_queue.length > 0)
+                this.input_wait++;
+            else if (this.input_wait != 0)
+                this.input_wait++;
+        }
+        var input_queue_length = this.input_queue.length;
+        for (var i = 0; i < input_queue_length; i++) {
+            switch (this.input_queue.splice(0, 1)[0]) {
+                case IEType.UP:
+                    if (!this.UP_pressed)
+                        this.UP_pressed = true;
+                    break;
+                case IEType.DOWN:
+                    if (!this.DOWN_pressed)
+                        this.DOWN_pressed = true;
+                    break;
+                case IEType.RIGHT:
+                    if (!this.RIGHT_pressed)
+                        this.RIGHT_pressed = true;
+                    break;
+                case IEType.LEFT:
+                    if (!this.LEFT_pressed)
+                        this.LEFT_pressed = true;
+                    break;
+            }
+        }
         if (this.restart_flag_delay_set)
             return;
         if (!this.real_time) {
@@ -96,40 +108,41 @@ class CaR extends Game {
                 this.real_time_temporarily_set = true;
                 this.update_count = 0;
             } else {
-                if (this.first_dir == null && this.second_dir == null)
+                if (this.input_wait >= 6) {
+                    this.update_count = 0;
+                    this.input_wait = 0;
+                } else
                     this.update_count = 1;
-                else {
-                    if (this.update_count != 0 && this.second_dir == null) {
-                        this.update_count = 0;
-                        return;
-                    } else
-                        this.update_count = 0;
-                }
             }
         }
         if (this.update_count == 0) {
-            var player_direction = null;
-            if (this.first_dir != null || this.second_dir != null) {
-                if (this.second_dir != null) {
-                    if ((this.first_dir == DIR.U && this.second_dir == DIR.L) || (this.first_dir == DIR.L && this.second_dir == DIR.U))
-                        player_direction = DIR.UL;
-                    else if ((this.first_dir == DIR.U && this.second_dir == DIR.R) || (this.first_dir == DIR.R && this.second_dir == DIR.U))
-                        player_direction = DIR.UR;
-                    else if ((this.first_dir == DIR.D && this.second_dir == DIR.L) || (this.first_dir == DIR.L && this.second_dir == DIR.D))
-                        player_direction = DIR.DL;
-                    else if ((this.first_dir == DIR.D && this.second_dir == DIR.R) || (this.first_dir == DIR.R && this.second_dir == DIR.D))
-                        player_direction = DIR.DR;
-                    else
-                        player_direction = this.second_dir;
-                } else if (this.first_dir != null)
-                    player_direction = this.first_dir;
+            if (this.UP_pressed || this.DOWN_pressed || this.LEFT_pressed || this.RIGHT_pressed) {
+                var player_direction = null;
+                if (this.UP_pressed && this.LEFT_pressed)
+                    player_direction = DIR.UL;
+                else if (this.UP_pressed && this.RIGHT_pressed)
+                    player_direction = DIR.UR;
+                else if (this.DOWN_pressed && this.LEFT_pressed)
+                    player_direction = DIR.DL;
+                else if (this.DOWN_pressed && this.RIGHT_pressed)
+                    player_direction = DIR.DR;
+                else if (this.UP_pressed)
+                    player_direction = DIR.U;
+                else if (this.DOWN_pressed)
+                    player_direction = DIR.D;
+                else if (this.LEFT_pressed)
+                    player_direction = DIR.L;
+                else if (this.RIGHT_pressed)
+                    player_direction = DIR.R;
                 if (this.game_mode == 0)
                     this.robbers[this.robbers.length - 1].player_intended_direction = player_direction;
                 else
                     this.cops[this.cops.length - 1].player_intended_direction = player_direction;
+                this.UP_pressed = false;
+                this.DOWN_pressed = false;
+                this.LEFT_pressed = false;
+                this.RIGHT_pressed = false;
             }
-            this.first_dir = null;
-            this.second_dir = null;
             this.grid.update();
             Obstacle_Sprite.update_all();
             Robber_Sprite.update_all();
