@@ -1,6 +1,7 @@
 body {
     background-color: #F0F0F0;
-    font-family: -apple-system, BlinkMacSystemFont, Arial, sans-serif
+    font-family: -apple-system, BlinkMacSystemFont, Arial, sans-serif;
+    color: #000000;
 }
 
 .navigation_bar {
@@ -29,8 +30,13 @@ body {
     background-color: #BDBDBD;
     display: inline-block;
     text-align: left;
-    max-width: 1280px;
+    width: 1280px;
     padding: 15px 32px;
+}
+
+a {
+    color: #5397D5;
+    text-decoration: none;
 }
 
 .game_link {

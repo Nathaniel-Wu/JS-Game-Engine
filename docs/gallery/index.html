@@ -48,42 +48,91 @@
     <div class="description_block">
         <br/>
         <div class="description_wrapper">
+            <h2 style="text-align: center;">
+                Read Before You Play
+            </h2>
+            <h4>
+                <a href="../../alchemy/index.html">Alchemy R</a>
+            </h4>
             <p>
-                Lorem ipsum dolor sit amet, consectetur adipiscing elit. Praesent tempus ante in sapien dapibus, sit amet tempor neque venenatis.
-                Donec sagittis eget dolor in tincidunt. Aenean at nunc eget sem elementum tempus. Ut finibus maximus est.
-                Curabitur vitae nibh mi. Integer imperdiet arcu ac pulvinar sagittis. Proin at eros et tellus accumsan fermentum
-                quis non leo. Sed euismod, ligula nec euismod congue, felis justo porta odio, at pellentesque eros nisi ac
-                tellus. Sed ultricies sapien quam, id volutpat arcu tincidunt a. Pellentesque eu tellus venenatis, eleifend
-                ex vel, ultrices arcu. Aliquam diam sapien, iaculis eu magna nec, egestas semper mauris. Nam eget maximus
-                lorem. Nullam tincidunt massa in nisl rhoncus, accumsan feugiat tortor semper. Donec mollis eleifend lacus,
-                non scelerisque ligula consectetur at. Donec mollis urna magna, at mattis dui egestas eget.
+                is a Little Alchemy-like game.
             </p>
             <p>
-                Suspendisse id feugiat ipsum. Integer sagittis turpis ac urna pharetra, sed pharetra lectus sagittis. Phasellus rhoncus turpis
-                sit amet hendrerit faucibus. Aenean condimentum rhoncus urna id ullamcorper. Mauris porttitor mi vitae tortor
-                fermentum, a mollis metus imperdiet. Etiam eleifend nulla velit, quis tempor dui suscipit at. Nam consequat
-                faucibus leo at iaculis. Maecenas accumsan lorem eu euismod pellentesque.
+                Drag elements from sidebar and drop them to playground, mix each other to create new elements; drag elements and drop within sidebar to remove it.
+            </p>
+            <h4>
+                <a href="../../snake/index.html">Snake R</a>
+            </h4>
+            <p>
+                is a Snake-like game.
             </p>
             <p>
-                Praesent vitae dolor at enim aliquet blandit. Praesent elementum lorem et orci condimentum tempor. Aenean tellus elit, tempor
-                ac nulla in, sollicitudin sollicitudin sapien. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer
-                auctor euismod elit, sit amet malesuada urna viverra quis. In aliquet iaculis augue, eget malesuada urna.
-                Quisque vitae aliquet mauris. Cras eleifend non risus vel placerat. Aenean et enim massa. Proin scelerisque
-                sapien dapibus tincidunt convallis. Nam vel molestie turpis, quis mollis dolor. Phasellus bibendum ipsum
-                mi, imperdiet blandit nisi laoreet ut.
+                Eat red normal food to make a snake grow, eat blue spoiled food to make a snake shrink. Normal food stays on stage permanently unless eaten by snake, spoiled food will disappear automatically if not eaten within a certain amount of time.
             </p>
             <p>
-                Donec at tellus tortor. Nam elementum quam odio, a porta est placerat commodo. Nunc non varius metus. Proin accumsan ornare
-                nunc maximus fringilla. Duis accumsan pharetra urna in ullamcorper. Pellentesque id quam ac arcu tincidunt
-                eleifend egestas ut arcu. Duis posuere dictum mauris, vel dignissim ipsum laoreet in. Donec quis tortor risus.
-                Sed tempor at sem a sodales.
+                Game will be over if a snake collides with wall or another snake or itself; in multiplayer, winner is the one who didn't hit anything, or the one who has a higher score when both player hit something.</p>
+            <p>
+                Game will restart the same mode automatically in 3 seconds after game over.
             </p>
             <p>
-                Curabitur elementum leo vel ligula auctor euismod. Aenean tristique magna purus, non congue lacus rutrum consequat. Etiam
-                non velit eget felis dictum tincidunt. Cras faucibus rhoncus quam a rhoncus. Donec nec nibh varius, scelerisque
-                nibh in, dignissim lacus. Fusce quis sapien purus. Suspendisse tempor aliquet auctor. Suspendisse rhoncus
-                finibus diam in pretium. Proin tempus metus vitae pellentesque rhoncus. Nam in elit sed nunc euismod molestie.
-                Proin sed tellus quis turpis ultricies vulputate a vitae nunc.
+                In single player mode, press arrow key to navigate.
+            </p>
+            <p>
+                In multiplayer (local) mode, press arrow key to navigate yellow-colored snake, press WASD to navigate cyan-colored snake.
+            </p>
+            <p>
+                In multiplayer (network) mode, press arrow key to navigate your snake; if you play as host, your snake is yellow-colored, otherwise it's cyan-colored.
+            </p>
+            <p>
+                <b>Important Note on Multiplayer (network)</b>
+            </p>
+            <p>
+                You have to at least load two instances of this game to get this mode connected, on one instance you should select "Play as Host", on the other you should select "Play as Guest". Reload <b>both</b> instances if you happen to select the same option on both instances.
+            </p>
+            <p>
+                It's using WebRTC, so it can only run on <b>Chrome</b> or <b>Firefox</b> at this point; it's also using WebSocket, but HTTPS security doesn't allow WebSocket, so it has to be loaded with <b>HTTP</b>.
+            </p>
+            <p>
+                The peer-to-peer connection is setup by cloud service of PeerJS, game won't connect if either player isn't connected to the Internet.
+            </p>
+            <h4>
+                <a href="../../bubble_shooter/index.html">Bubble Shooter R</a>
+            </h4>
+            <p>
+                is a Bubble Shooter-like game.
+            </p>
+            <p>
+                Press left &amp; right arrow key to re-orient barrel, press space key to shoot the prepared bubble.
+            </p>
+            <p>
+                When the shot bubble collides with any existing bubble, all connect bubbles of the same color will disappear.
+            </p>
+            <p>
+                All existing bubble will be moved down every 20 seconds, game will be over when they crosses the line.
+            </p>
+            <h4>
+                <a href="../../cops_and_robbers/index.html">Cops and Robbers R</a>
+            </h4>
+            <p>
+                is a Cops and Robbers-like game. Cops are represented by sprites flashing in blue, black and gray; robbers are cyan sprites.
+            </p>
+            <p>
+                This game provides two modes, in one mode you control a robber against cops, in the other you play as a cop to catch robbers.
+            </p>
+            <p>
+                In Addition, the game provides two way to of turn-taking, one is that the game will only take turn when player makes input, the other is that the game will take turn at 2 Hz regardless of player input, which is more challenging.
+            </p>
+            <p>
+                If you choose to play as robber, use arrow key to navigate your robber (yellow colored) to move in 8 directions; other robbers are controlled by AI.
+            </p>
+            <p>
+                If you choose to play as cop, also use arrow key to navigate your cop (grey colored) to move in 8 directions; other cops are controlled by AI.
+            </p>
+            <p>
+                If 2 cops have been at 2 adjacent position of robber at the same time, or if a robber can't move because it's blocked by 1 police and obstacles, that robber is caught, and can't move anymore.
+            </p>
+            <p>
+                If all robbers are caught within a time limit, cops win, other wise robbers win; you need to win in order to load the next level, otherwise game will reload the current level; the game provides 3 levels at the moment.
             </p>
         </div>
     </div>
