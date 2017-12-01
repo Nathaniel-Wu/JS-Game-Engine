@@ -21,42 +21,269 @@
     <div class="description_block">
         <br/>
         <div class="description_wrapper">
+            <h2 style="text-align: center;">Get Started</h2>
             <p>
-                Lorem ipsum dolor sit amet, consectetur adipiscing elit. Praesent tempus ante in sapien dapibus, sit amet tempor neque venenatis.
-                Donec sagittis eget dolor in tincidunt. Aenean at nunc eget sem elementum tempus. Ut finibus maximus est.
-                Curabitur vitae nibh mi. Integer imperdiet arcu ac pulvinar sagittis. Proin at eros et tellus accumsan fermentum
-                quis non leo. Sed euismod, ligula nec euismod congue, felis justo porta odio, at pellentesque eros nisi ac
-                tellus. Sed ultricies sapien quam, id volutpat arcu tincidunt a. Pellentesque eu tellus venenatis, eleifend
-                ex vel, ultrices arcu. Aliquam diam sapien, iaculis eu magna nec, egestas semper mauris. Nam eget maximus
-                lorem. Nullam tincidunt massa in nisl rhoncus, accumsan feugiat tortor semper. Donec mollis eleifend lacus,
-                non scelerisque ligula consectetur at. Donec mollis urna magna, at mattis dui egestas eget.
+                This tutorial demonstrates how to build a game using the engine, but it's highly abstract, most parts need to be modified
+                according to your own game.
             </p>
+            <h4>Step 1: Setup HTML and JS</h4>
             <p>
-                Suspendisse id feugiat ipsum. Integer sagittis turpis ac urna pharetra, sed pharetra lectus sagittis. Phasellus rhoncus turpis
-                sit amet hendrerit faucibus. Aenean condimentum rhoncus urna id ullamcorper. Mauris porttitor mi vitae tortor
-                fermentum, a mollis metus imperdiet. Etiam eleifend nulla velit, quis tempor dui suscipit at. Nam consequat
-                faucibus leo at iaculis. Maecenas accumsan lorem eu euismod pellentesque.
+                On your HTML page, include the engine JavaScript, then use a wrapper such as div, to wrap a canvas, and make sure that your
+                wrapper has an id of "game", and your canvas has an id of "canvas", other wise the engine won't operate as
+                planned; of couse, you need to include your game specific JavaScript as well, it's recommended to include
+                it in the body rather than in the head.
             </p>
+            <pre><code>
+    &lt;head&gt;
+        ……
+        &lt;script src="engine.js" type="text/javascript"&gt;&lt;/script&gt;
+        ……
+    &lt;/head&gt;
+
+    &lt;body&gt;
+        ……
+        &lt;div id="game"&gt;
+            &lt;canvas id="canvas"&gt;&lt;/canvas&gt;
+        &lt;/div&gt;
+        &lt;script src="your_game.js" type="text/javascript"&gt;&lt;/script&gt;
+        ……
+    &lt;/body&gt;
+    </code></pre>
             <p>
-                Praesent vitae dolor at enim aliquet blandit. Praesent elementum lorem et orci condimentum tempor. Aenean tellus elit, tempor
-                ac nulla in, sollicitudin sollicitudin sapien. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer
-                auctor euismod elit, sit amet malesuada urna viverra quis. In aliquet iaculis augue, eget malesuada urna.
-                Quisque vitae aliquet mauris. Cras eleifend non risus vel placerat. Aenean et enim massa. Proin scelerisque
-                sapien dapibus tincidunt convallis. Nam vel molestie turpis, quis mollis dolor. Phasellus bibendum ipsum
-                mi, imperdiet blandit nisi laoreet ut.
+                Then in your game script, you can wirte a subclass of Game to start.
             </p>
+            <pre><code>
+    class YourGame extends Game {
+        ……
+    }
+    var game = new YourGame();
+    game.start();
+    </code></pre>
             <p>
-                Donec at tellus tortor. Nam elementum quam odio, a porta est placerat commodo. Nunc non varius metus. Proin accumsan ornare
-                nunc maximus fringilla. Duis accumsan pharetra urna in ullamcorper. Pellentesque id quam ac arcu tincidunt
-                eleifend egestas ut arcu. Duis posuere dictum mauris, vel dignissim ipsum laoreet in. Donec quis tortor risus.
-                Sed tempor at sem a sodales.
+                Now it's time to start working on your game.
             </p>
+            <h4>Step 2: Define Resources of Your Game</h4>
             <p>
-                Curabitur elementum leo vel ligula auctor euismod. Aenean tristique magna purus, non congue lacus rutrum consequat. Etiam
-                non velit eget felis dictum tincidunt. Cras faucibus rhoncus quam a rhoncus. Donec nec nibh varius, scelerisque
-                nibh in, dignissim lacus. Fusce quis sapien purus. Suspendisse tempor aliquet auctor. Suspendisse rhoncus
-                finibus diam in pretium. Proin tempus metus vitae pellentesque rhoncus. Nam in elit sed nunc euismod molestie.
-                Proin sed tellus quis turpis ultricies vulputate a vitae nunc.
+                Your game must consist of something, right? Thus you need to declare them first in the game constructor. You also need to
+                define how to load and deload everything.
+            </p>
+            <pre><code>
+    class YourGame extends Game {
+        constructor(){
+            super(60); //Set framerate to 60 Hz.
+            this.something = null; //Your objects.
+        }
+
+        load(){
+            this.something = new Something(); //Initialize your objects.
+        }
+
+        deload(){
+            this.something.destroy(); //Destroy your objects.
+            this.something = null;
+        }
+    }
+    </code></pre>
+            <p>
+                A real game will look more complicated than this, but you get the idea. Make sure you destroy or recycle your stuff on deload,
+                it's important.
+            </p>
+            <h4>Step 3: Define How Your Recources Update and Draw</h4>
+            <p>
+                A game is basically a running loop, you need to update your objects according to your game's logic, and eventually draw them
+                out. So that's what you need to do in this step,
+            </p>
+            <pre><code>
+    class YourGame extends Game {
+        ……
+        update(){
+            super.update();
+            this.something.update();
+        }
+
+        draw(){
+            super.draw();
+            this.something.draw();
+        }
+        ……
+    }
+    </code></pre>
+            <p>
+                The original Game update() and draw() are important in loop management, make sure you invoke them first in your overrode
+                version. A real game's update() can be much more complicated than this, but draw() is usually simple, you
+                sould keep rendering details in your object classes.
+            </p>
+            <h4>Step 4: Define The Objects</h4>
+            <p>
+                Similar to your game, objects in it needs to be initialized at the start, updated and drawed in every game loop, and eventually
+                be destroyed.
+            </p>
+            <pre><code>
+    class Something extends Sprite {//Sprite and its many subclasses are the most used ones, if you want to have more flexibility, inherit GObject.
+        constructor(){
+            super(x, y, w, h);//You should use actual numbers here, to define its location and size.
+            //Define attributes
+        }
+
+        update(){
+            super.update();
+            //Do stuff
+        }
+
+        actual_draw() {
+            super.actual_draw();
+            //Do stuff
+        }
+
+        destroy(){
+            super.destroy();
+            //Do stuff
+        }
+        ……
+    }
+    </code></pre>
+            <p>
+                One thing to note here is that you should always override actual_draw() rather than draw(), because classes higher in the
+                inheritance tree does rotation for you, which need to do stuff before and after actual_draw(). Also, keep
+                in mind that you need to invoke the inherited versions of functions first, but if you do need to completely
+                rewrite one or two, read the source codes of engine first to ensure that you won't break something.
+            </p>
+        </div>
+    </div>
+    <div class="description_block">
+        <br/>
+        <div class="description_wrapper">
+            <h2 style="text-align: center;">Use Collision Detection</h2>
+            <p>
+                This tutorial demonstrates how to use engine built-in collision detection, but it's highly abstract, most parts need to be
+                modified according to your own game.
+            </p>
+            <h4>Step 1: Inherit CollidableGObject or Its Subclasses</h4>
+            <p>
+                Collision detection are provided by CollidableGObject class.
+            </p>
+            <h4>Step 2: Implement move_prediction(), collides() and resolve()</h4>
+            <p>
+                Collision detection are provided by CollidableGObject class.
+            </p>
+            <pre><code>
+    class Something extends Sprite{
+        ……
+        move_prediction() {
+            return new Something();
+            //You should return a instance that has the intended position and velocity set,
+            //so the engine could invoke the specific collision determination function of this class,
+            //this instance will be destroyed by engine automatically after that.
+        }
+    
+        collides(CGO) {
+            super.collides(CGO);
+            //Do stuff that determines whether it collides with the CollidableGObject passed in, your return value should be boolean.
+            //Sometimes you will probably need to rewrite this function without calling super function.
+            //For most of the situations, you don't need to add new codes to or rewrite this function.
+        }
+    
+        resolve(collision) {
+            super.resolve(collision);
+            //Do stuff that handles the collision, this is a instance of class Collision.
+            //Check out class Collision's source codes for more detail.
+        }
+        ……
+    }
+    </code></pre>
+            <h4>Step 3: Invoke CGO_update() in game update</h4>
+            <p>
+                CGO_update() is a static function of CollidableGObject, it uses quad-tree and other acceleration techniques to discard unnecessary
+                collision checks.
+            </p>
+            <pre><code>
+class YourGame extends Game{
+    ……
+    update(){
+        ……
+        CollidableGObject.CGO_update();
+        ……  
+    }
+    ……
+}
+</code></pre>
+            <p>
+                One thing you need to pay attention to is that your should invoke CGO_update() before any CollidableGObject actually updates
+                in your game update. If you do have all the logic done correctly, the collision detection should be operating
+                smoothly.
+            </p>
+        </div>
+    </div>
+    <div class="description_block">
+        <br/>
+        <div class="description_wrapper">
+            <h2 style="text-align: center;">Use Input Listening</h2>
+            <p>
+                This tutorial demonstrates how to use engine built-in input listening, but it's highly abstract, most parts need to be modified
+                according to your own game.
+            </p>
+            <h4>Step 1: Subscribe to Engine Input Event Manager</h4>
+            <p>
+                This step doesn't need to inherit any class, it's a composition. Just keep a reference of engine's input manager, and the
+                subscriber index of your object.
+            </p>
+            <pre><code>
+class Something{
+    constructor(){
+        ……
+        this.iesm = input_event_subscription_manager;
+        //input_event_subscription_manager is a global variable of engine, but it's not necessarily always the same one, it can be swapped.
+        this.si = this.iesm.add_subscriber(this);
+        ……
+    }
+
+    destroy(){
+        ……
+        this.iesm.remove_subscriber(this.si);
+        this.si = null;
+        this.iesm = null;
+        ……
+    }
+}        
+</code></pre>
+            <p>
+                Aside from subscribe, remember to unsubscribe when you destroy the object.
+            </p>
+            <h4>Step 2: Define How to Handle Certain Input</h4>
+            <p>
+                The engine's input manager will always be invoking its subscriber's handle_input_event() function.
+            </p>
+            <pre><code>
+class Something{
+    ……
+    handle_input_event(event) {
+        switch (event.type) {
+            case IEType.……://IEType is a enummeration object constant in engine. 
+                try {
+                    this.input_event_subscription_manager.set_exclusive(this.si, IEType.……);
+                    //Do something about the input
+                    this.input_event_subscription_manager.release_exclusive(this.si, IEType.……);
+                } catch (e) {console.log(e);} 
+                break;
+        }
+    }
+    ……
+}
+</code></pre>
+            <p>
+                There is a set_exclusive() and release_exclusive() process, the former tells the engine that it's the only subscriber that
+                handles the certain type of input, until it releases the lock. This provides some flexibility, for certain
+                reasons you might need to not release lock until some conditions meet, or maybe you don't need to set lock
+                becuase various instances needs the same input.
+            </p>
+        </div>
+    </div>
+    <div class="description_block">
+        <br/>
+        <div class="description_wrapper">
+            <h2 style="text-align: center;">More</h2>
+            <p>
+                For more details and usage, check out the engine source code at <a href="https://github.ncsu.edu/twu23/Engine/blob/master/engine.js">here</a>.
             </p>
         </div>
     </div>
