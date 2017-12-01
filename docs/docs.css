@@ -12,14 +12,14 @@ body {
     background-color: #636363;
     border: none;
     color: white;
-    padding: 15px 32px;
+    padding: 1.3vw 1vw;
     text-align: center;
     text-decoration: none;
     display: inline-block;
-    font-size: 24px;
-    margin: 4px 0px;
+    font-size: 2vw;
+    margin: 2px 0px;
     cursor: pointer;
-    min-width: 270px;
+    width: 21.25vw;
 }
 
 .description_block {
@@ -30,7 +30,8 @@ body {
     background-color: #BDBDBD;
     display: inline-block;
     text-align: left;
-    width: 1280px;
+    min-width: 80%;
+    max-width: 90%;
     padding: 15px 32px;
 }
 
@@ -43,10 +44,17 @@ a {
     display: inline-block;
 }
 
-.game_link_image:hover {
+.game_link_image_wrapper:hover {
     filter: drop-shadow(8px 8px 2px grey);
 }
 
+.game_snapshot{
+    text-align: center;
+    width: 23.19vw;
+    /* height: 23.19vw; */
+}
+
 .game_link_title {
-    font-family: -apple-system, BlinkMacSystemFont, Arial, sans-serif
+    font-family: -apple-system, BlinkMacSystemFont, Arial, sans-serif;
+    font-size: 1.6vw;
 }
