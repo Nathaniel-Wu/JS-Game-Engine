@@ -21,42 +21,50 @@
     <div class="description_block">
         <br/>
         <div class="description_wrapper">
+            <h4>Game</h4>
             <p>
-                Lorem ipsum dolor sit amet, consectetur adipiscing elit. Praesent tempus ante in sapien dapibus, sit amet tempor neque venenatis.
-                Donec sagittis eget dolor in tincidunt. Aenean at nunc eget sem elementum tempus. Ut finibus maximus est.
-                Curabitur vitae nibh mi. Integer imperdiet arcu ac pulvinar sagittis. Proin at eros et tellus accumsan fermentum
-                quis non leo. Sed euismod, ligula nec euismod congue, felis justo porta odio, at pellentesque eros nisi ac
-                tellus. Sed ultricies sapien quam, id volutpat arcu tincidunt a. Pellentesque eu tellus venenatis, eleifend
-                ex vel, ultrices arcu. Aliquam diam sapien, iaculis eu magna nec, egestas semper mauris. Nam eget maximus
-                lorem. Nullam tincidunt massa in nisl rhoncus, accumsan feugiat tortor semper. Donec mollis eleifend lacus,
-                non scelerisque ligula consectetur at. Donec mollis urna magna, at mattis dui egestas eget.
+                A class that helps you manage game update and rendering, UI, plus levels management.
             </p>
+            <h4>UI and UI stack</h4>
             <p>
-                Suspendisse id feugiat ipsum. Integer sagittis turpis ac urna pharetra, sed pharetra lectus sagittis. Phasellus rhoncus turpis
-                sit amet hendrerit faucibus. Aenean condimentum rhoncus urna id ullamcorper. Mauris porttitor mi vitae tortor
-                fermentum, a mollis metus imperdiet. Etiam eleifend nulla velit, quis tempor dui suscipit at. Nam consequat
-                faucibus leo at iaculis. Maecenas accumsan lorem eu euismod pellentesque.
+                You can create multiple UI overlays over the game itself, they update in cooperation with the game but are independent from game logics.
             </p>
+            <h4>Vector and Coordinate</h4>
             <p>
-                Praesent vitae dolor at enim aliquet blandit. Praesent elementum lorem et orci condimentum tempor. Aenean tellus elit, tempor
-                ac nulla in, sollicitudin sollicitudin sapien. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer
-                auctor euismod elit, sit amet malesuada urna viverra quis. In aliquet iaculis augue, eget malesuada urna.
-                Quisque vitae aliquet mauris. Cras eleifend non risus vel placerat. Aenean et enim massa. Proin scelerisque
-                sapien dapibus tincidunt convallis. Nam vel molestie turpis, quis mollis dolor. Phasellus bibendum ipsum
-                mi, imperdiet blandit nisi laoreet ut.
+                Classes that helps you calculate and represent coordinates in game.
             </p>
+            <h4>Object and ID</h4>
             <p>
-                Donec at tellus tortor. Nam elementum quam odio, a porta est placerat commodo. Nunc non varius metus. Proin accumsan ornare
-                nunc maximus fringilla. Duis accumsan pharetra urna in ullamcorper. Pellentesque id quam ac arcu tincidunt
-                eleifend egestas ut arcu. Duis posuere dictum mauris, vel dignissim ipsum laoreet in. Donec quis tortor risus.
-                Sed tempor at sem a sodales.
+                All visible objects in game should be instances of subclasses of GObject, which keeps track all the instances of it, giving a alternative way of managing object references if you forget to keep them explicitly.
+                It also provides basic movements and rotation abilities.
             </p>
+            <h4>Sprites</h4>
             <p>
-                Curabitur elementum leo vel ligula auctor euismod. Aenean tristique magna purus, non congue lacus rutrum consequat. Etiam
-                non velit eget felis dictum tincidunt. Cras faucibus rhoncus quam a rhoncus. Donec nec nibh varius, scelerisque
-                nibh in, dignissim lacus. Fusce quis sapien purus. Suspendisse tempor aliquet auctor. Suspendisse rhoncus
-                finibus diam in pretium. Proin tempus metus vitae pellentesque rhoncus. Nam in elit sed nunc euismod molestie.
-                Proin sed tellus quis turpis ultricies vulputate a vitae nunc.
+                The engine already have some basic sprite classes built-in, for various purposes, you can make use of them without having to inherit from GObject and build everything else from ground.
+            </p>
+            <h4>Grid</h4>
+            <p>
+                A lot of 2D games make use of the idea of grid, so the engine has one built-in, you can use it to simplify grid coordinate calculation and even do path finding.
+            </p>
+            <h4>Particle System</h4>
+            <p>
+                This is for generateing a large number of objects and efficiently managing memory for them, you can inherit from the classes engine provides to get started.
+            </p>
+            <h4>Collision Detection</h4>
+            <p>
+                The engine has collision detection built-in, all you need to do is to make sure that you make subclasses that inherits CollidableGObject, and implement interfaces for how you handle collision exactly.
+            </p>
+            <h4>Scene Graphs</h4>
+            <p>
+                Several such classes are provided to deal with objects that are in assosiation or overlapping each other.
+            </p>
+            <h4>Input Listening</h4>
+            <p>
+                Mouse/keyboard input are being listened by the engine, if you have objects that need to respond to certain input, you can receive them from the engine.
+            </p>
+            <h4>Networking</h4>
+            <p>
+                The engine uses Peer.JS to do basic P2P networking, it wraps and simplifies the process of establishing connection and communication, so that you can concentrate on what to send and how to deal with what you receive.
             </p>
         </div>
     </div>
