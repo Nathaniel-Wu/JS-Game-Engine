@@ -1,5 +1,10 @@
 body {
     background-color: #F0F0F0;
+    font-family: -apple-system, BlinkMacSystemFont, Arial, sans-serif
+}
+
+.navigation_bar {
+    text-align: center;
 }
 
 .navigation_button {
@@ -10,7 +15,32 @@ body {
     text-align: center;
     text-decoration: none;
     display: inline-block;
-    font-size: 16px;
-    margin: 4px 2px;
+    font-size: 24px;
+    margin: 4px 0px;
     cursor: pointer;
+    min-width: 270px;
+}
+
+.description_block {
+    text-align: center;
+}
+
+.description_wrapper {
+    background-color: #BDBDBD;
+    display: inline-block;
+    text-align: left;
+    max-width: 1280px;
+    padding: 15px 32px;
+}
+
+.game_link {
+    display: inline-block;
+}
+
+.game_link_image:hover {
+    filter: drop-shadow(8px 8px 2px grey);
+}
+
+.game_link_title {
+    font-family: -apple-system, BlinkMacSystemFont, Arial, sans-serif
 }

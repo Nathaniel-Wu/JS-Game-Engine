@@ -2,7 +2,7 @@
 
 This is a JavaScript HTML5 game engine.
 
-### [Gallery](https://pages.github.ncsu.edu/twu23/Engine)
+### [Gallery](https://pages.github.ncsu.edu/twu23/Engine/docs/gallery)
 
 Displays all avalaible games made with the engine, click on each to play.
 
