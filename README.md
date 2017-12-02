@@ -6,13 +6,13 @@ This is a JavaScript HTML5 game engine.
 
 Displays all avalaible games made with the engine, click on each to play.
 
-##### 1. [Alchemy R](https://pages.github.ncsu.edu/twu23/Engine/alchemy)
+##### 1. [Alchemy R](https://pages.github.ncsu.edu/twu23/Engine/games/alchemy)
 
 A Little Alchemy-like game.
 
 Drag elements from sidebar and drop them to playground, mix each other to create new elements; drag elements and drop within sidebar to remove it.
 
-##### 2. [Snake R](https://pages.github.ncsu.edu/twu23/Engine/snake)
+##### 2. [Snake R](https://pages.github.ncsu.edu/twu23/Engine/games/snake)
 
 A Snake-like game.
 
@@ -36,7 +36,7 @@ It's using WebRTC, so it can only run on **Chrome** or **Firefox** at this point
 
 The peer-to-peer connection is setup by cloud service of PeerJS, game won't connect if either player isn't connected to the Internet.
 
-##### 3. [Bubble Shooter R](https://pages.github.ncsu.edu/twu23/Engine/bubble_shooter)
+##### 3. [Bubble Shooter R](https://pages.github.ncsu.edu/twu23/Engine/games/bubble_shooter)
 
 A Bubble Shooter-like game.
 
@@ -46,7 +46,7 @@ When the shot bubble collides with any existing bubble, all connect bubbles of t
 
 All existing bubble will be moved down every 20 seconds, game will be over when they crosses the line.
 
-##### 4. [Cops and Robbers R](https://pages.github.ncsu.edu/twu23/Engine/cops_and_robbers)
+##### 4. [Cops and Robbers R](https://pages.github.ncsu.edu/twu23/Engine/games/cops_and_robbers)
 
 A Cops and Robbers-like game. Cops are represented by sprites flashing in blue, black and gray; robbers are cyan sprites.
 
